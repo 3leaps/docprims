@@ -11,21 +11,6 @@ fn normalize_newlines(s: &str) -> String {
     s.replace("\r\n", "\n").replace('\r', "\n")
 }
 
-fn truncate_to_bytes(s: &str, max_bytes: usize) -> &str {
-    if s.len() <= max_bytes {
-        return s;
-    }
-
-    let mut last = 0;
-    for (i, _) in s.char_indices() {
-        if i > max_bytes {
-            break;
-        }
-        last = i;
-    }
-    &s[..last]
-}
-
 /// Extract plain text from Markdown content.
 pub fn extract(content: &str) -> Result<ExtractedText> {
     let parser = Parser::new(content);
@@ -276,7 +261,7 @@ pub fn extract_v0_str(
         let remaining = limits.max_output_bytes.saturating_sub(doc_text.len());
         let text = if text.len() > remaining {
             truncated_output = true;
-            truncate_to_bytes(&text, remaining).to_string()
+            crate::truncate_to_utf8_boundary(&text, remaining).to_string()
         } else {
             text
         };
@@ -336,7 +321,6 @@ pub fn extract_v0_str(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use jsonschema::Resource;
 
     #[test]
     fn test_simple_markdown() {
@@ -404,36 +388,6 @@ mod tests {
 
     #[test]
     fn v0_validates_against_local_schema() {
-        let root_schema: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../schemas/v0/extract/docprims-extract.schema.json"
-        ))
-        .unwrap();
-
-        let block_schema: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../schemas/v0/extract/docprims-block.schema.json"
-        ))
-        .unwrap();
-
-        let loc_schema: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../schemas/v0/extract/docprims-location.schema.json"
-        ))
-        .unwrap();
-
-        let validator = jsonschema::draft202012::options()
-            .with_resources([
-                (
-                    "https://schemas.3leaps.dev/docprims/extract/v0/docprims-block.schema.json",
-                    Resource::from_contents(block_schema).unwrap(),
-                ),
-                (
-                    "https://schemas.3leaps.dev/docprims/extract/v0/docprims-location.schema.json",
-                    Resource::from_contents(loc_schema).unwrap(),
-                ),
-            ]
-            .into_iter())
-            .build(&root_schema)
-            .unwrap();
-
         let md = "# H\n\npara";
         let limits = ExtractLimits {
             max_input_bytes: 1024,
@@ -441,10 +395,7 @@ mod tests {
             max_blocks: 100,
         };
         let out = extract_v0_str(md, "./x.md", limits).unwrap();
-        let value = serde_json::to_value(&out).unwrap();
-
-        let errors: Vec<_> = validator.iter_errors(&value).collect();
-        assert!(errors.is_empty(), "schema errors: {errors:?}");
+        crate::test_support::assert_v0_schema_valid(&out);
     }
 
     #[test]

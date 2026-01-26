@@ -299,6 +299,66 @@ fn output_result(path: &std::path::Path, text: &ExtractedText, args: &ExtractArg
                             );
                         }
                     }
+                } else if ext == "html" || ext == "htm" {
+                    let limits = ExtractLimits {
+                        max_input_bytes: args.max_input_bytes,
+                        ..ExtractLimits::default()
+                    };
+
+                    match docprims_text::extract_html_v0(path, limits) {
+                        Ok(extract) => {
+                            let json = if args.json_array {
+                                serde_json::to_string_pretty(&extract).unwrap_or_else(|e| {
+                                    eprintln!("Error serializing JSON: {e}");
+                                    "{}".to_string()
+                                })
+                            } else {
+                                serde_json::to_string(&extract).unwrap_or_else(|e| {
+                                    eprintln!("Error serializing JSON: {e}");
+                                    "{}".to_string()
+                                })
+                            };
+                            println!("{json}");
+                            return;
+                        }
+                        Err(e) => {
+                            eprintln!(
+                                "Error extracting structured blocks for {}: {}",
+                                path.display(),
+                                e
+                            );
+                        }
+                    }
+                } else if ext == "xml" {
+                    let limits = ExtractLimits {
+                        max_input_bytes: args.max_input_bytes,
+                        ..ExtractLimits::default()
+                    };
+
+                    match docprims_text::extract_xml_v0(path, limits) {
+                        Ok(extract) => {
+                            let json = if args.json_array {
+                                serde_json::to_string_pretty(&extract).unwrap_or_else(|e| {
+                                    eprintln!("Error serializing JSON: {e}");
+                                    "{}".to_string()
+                                })
+                            } else {
+                                serde_json::to_string(&extract).unwrap_or_else(|e| {
+                                    eprintln!("Error serializing JSON: {e}");
+                                    "{}".to_string()
+                                })
+                            };
+                            println!("{json}");
+                            return;
+                        }
+                        Err(e) => {
+                            eprintln!(
+                                "Error extracting structured blocks for {}: {}",
+                                path.display(),
+                                e
+                            );
+                        }
+                    }
                 }
             }
 
