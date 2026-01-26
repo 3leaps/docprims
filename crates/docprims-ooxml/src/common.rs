@@ -2,8 +2,11 @@
 
 use docprims_core::{DocprimsError, Result};
 use quick_xml::escape::resolve_xml_entity;
+use std::borrow::Cow;
 use std::io::{Read, Seek};
 use zip::ZipArchive;
+
+use encoding_rs::Encoding;
 
 /// Maximum decompressed size to prevent zip bombs (100 MB default).
 pub const MAX_DECOMPRESSED_SIZE: u64 = 100 * 1024 * 1024;
@@ -53,13 +56,68 @@ pub fn read_archive_file<R: Read + Seek>(
         )));
     }
 
-    let mut content = String::with_capacity(size as usize);
+    let mut content = Vec::with_capacity(size as usize);
     let mut reader = std::io::BufReader::new(file);
     reader
-        .read_to_string(&mut content)
+        .read_to_end(&mut content)
         .map_err(|e| DocprimsError::Malformed(format!("Error reading {}: {}", name, e)))?;
 
-    Ok(Some(content))
+    Ok(Some(decode_xml_bytes(&content)?))
+}
+
+fn decode_xml_bytes(bytes: &[u8]) -> Result<String> {
+    let (enc, bom_len) = detect_encoding_and_bom(bytes);
+    let bytes = bytes.get(bom_len..).unwrap_or(bytes);
+    let (decoded, _, _) = enc.decode(bytes);
+    Ok(match decoded {
+        Cow::Borrowed(s) => s.to_string(),
+        Cow::Owned(s) => s,
+    })
+}
+
+fn detect_encoding_and_bom(bytes: &[u8]) -> (&'static Encoding, usize) {
+    // BOM detection first.
+    if bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {
+        return (encoding_rs::UTF_8, 3);
+    }
+    if bytes.starts_with(&[0xFF, 0xFE]) {
+        return (encoding_rs::UTF_16LE, 2);
+    }
+    if bytes.starts_with(&[0xFE, 0xFF]) {
+        return (encoding_rs::UTF_16BE, 2);
+    }
+
+    // Best-effort XML declaration sniffing.
+    if let Some(label) = sniff_xml_decl_encoding(bytes) {
+        if let Some(enc) = Encoding::for_label(label.as_bytes()) {
+            return (enc, 0);
+        }
+    }
+
+    (encoding_rs::UTF_8, 0)
+}
+
+fn sniff_xml_decl_encoding(bytes: &[u8]) -> Option<String> {
+    // XML declaration is ASCII-compatible; only scan a small prefix.
+    let prefix_len = bytes.len().min(1024);
+    let prefix = &bytes[..prefix_len];
+    let s = std::str::from_utf8(prefix).ok()?;
+    let lower = s.to_ascii_lowercase();
+    if !lower.starts_with("<?xml") {
+        return None;
+    }
+
+    let idx = lower.find("encoding=")?;
+    let after = &s[idx + "encoding=".len()..];
+    let mut chars = after.chars();
+    let quote = chars.next()?;
+    if quote != '"' && quote != '\'' {
+        return None;
+    }
+
+    let rest = chars.as_str();
+    let end = rest.find(quote)?;
+    Some(rest[..end].trim().to_string())
 }
 
 /// Resolve an XML entity reference to its string value.

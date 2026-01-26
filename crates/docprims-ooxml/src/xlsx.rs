@@ -4,13 +4,17 @@ use crate::common::{open_archive, read_archive_file, resolve_entity};
 use docprims_core::{DocprimsError, ExtractedText, Result};
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
+use std::collections::HashMap;
 use std::io::{Read, Seek};
 
 /// Shared strings path in XLSX archive.
 const SHARED_STRINGS_PATH: &str = "xl/sharedStrings.xml";
 
-/// First sheet path (default).
-const SHEET1_PATH: &str = "xl/worksheets/sheet1.xml";
+/// Workbook path in XLSX archive.
+const WORKBOOK_PATH: &str = "xl/workbook.xml";
+
+/// Workbook relationships path.
+const WORKBOOK_RELS_PATH: &str = "xl/_rels/workbook.xml.rels";
 
 /// Extract text from an XLSX reader.
 pub fn extract<R: Read + Seek>(reader: R) -> Result<ExtractedText> {
@@ -22,16 +26,133 @@ pub fn extract<R: Read + Seek>(reader: R) -> Result<ExtractedText> {
         None => Vec::new(),
     };
 
-    // Extract text from sheets
-    // TODO: Enumerate all sheets from workbook.xml
     let mut all_text = String::new();
 
-    if let Some(sheet_xml) = read_archive_file(&mut archive, SHEET1_PATH)? {
-        let sheet_text = extract_sheet_text(&sheet_xml, &shared_strings)?;
-        all_text.push_str(&sheet_text);
+    let sheet_paths = enumerate_sheets(&mut archive)?;
+    for (idx, sheet_path) in sheet_paths.iter().enumerate() {
+        if let Some(sheet_xml) = read_archive_file(&mut archive, sheet_path)? {
+            if idx > 0 && !all_text.ends_with('\n') {
+                all_text.push('\n');
+            }
+            let sheet_text = extract_sheet_text(&sheet_xml, &shared_strings)?;
+            all_text.push_str(&sheet_text);
+        }
     }
 
     Ok(ExtractedText::complete(all_text.trim().to_string()))
+}
+
+fn enumerate_sheets<R: Read + Seek>(archive: &mut zip::ZipArchive<R>) -> Result<Vec<String>> {
+    let workbook_xml = read_archive_file(archive, WORKBOOK_PATH)?
+        .ok_or_else(|| DocprimsError::Malformed("Missing xl/workbook.xml".to_string()))?;
+    let rels_xml = read_archive_file(archive, WORKBOOK_RELS_PATH)?.ok_or_else(|| {
+        DocprimsError::Malformed("Missing xl/_rels/workbook.xml.rels".to_string())
+    })?;
+
+    let sheet_rids = parse_workbook_sheet_rids(&workbook_xml)?;
+    let rels = parse_relationships(&rels_xml)?;
+
+    let mut out = Vec::new();
+    for rid in sheet_rids {
+        if let Some(target) = rels.get(&rid) {
+            out.push(resolve_ooxml_target("xl", target));
+        }
+    }
+    Ok(out)
+}
+
+fn parse_workbook_sheet_rids(xml: &str) -> Result<Vec<String>> {
+    let mut reader = Reader::from_str(xml);
+    let mut buf = Vec::new();
+    let mut rids = Vec::new();
+
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Ok(Event::Empty(e)) | Ok(Event::Start(e)) => {
+                if e.local_name().as_ref() == b"sheet" {
+                    for attr in e.attributes().flatten() {
+                        if attr.key.as_ref() == b"r:id" || attr.key.as_ref() == b"id" {
+                            rids.push(String::from_utf8_lossy(&attr.value).to_string());
+                        }
+                    }
+                }
+            }
+            Ok(Event::Eof) => break,
+            Err(e) => {
+                return Err(DocprimsError::Parse(format!(
+                    "workbook.xml parse error at {}: {}",
+                    reader.buffer_position(),
+                    e
+                )));
+            }
+            _ => {}
+        }
+        buf.clear();
+    }
+
+    Ok(rids)
+}
+
+fn parse_relationships(xml: &str) -> Result<HashMap<String, String>> {
+    let mut reader = Reader::from_str(xml);
+    let mut buf = Vec::new();
+    let mut rels = HashMap::new();
+
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Ok(Event::Empty(e)) | Ok(Event::Start(e)) => {
+                if e.local_name().as_ref() == b"Relationship" {
+                    let mut id: Option<String> = None;
+                    let mut target: Option<String> = None;
+                    for attr in e.attributes().flatten() {
+                        match attr.key.as_ref() {
+                            b"Id" => id = Some(String::from_utf8_lossy(&attr.value).to_string()),
+                            b"Target" => {
+                                target = Some(String::from_utf8_lossy(&attr.value).to_string())
+                            }
+                            _ => {}
+                        }
+                    }
+                    if let (Some(id), Some(target)) = (id, target) {
+                        rels.insert(id, target);
+                    }
+                }
+            }
+            Ok(Event::Eof) => break,
+            Err(e) => {
+                return Err(DocprimsError::Parse(format!(
+                    "rels parse error at {}: {}",
+                    reader.buffer_position(),
+                    e
+                )));
+            }
+            _ => {}
+        }
+        buf.clear();
+    }
+
+    Ok(rels)
+}
+
+fn resolve_ooxml_target(base_dir: &str, target: &str) -> String {
+    let target = target.trim();
+    let target = target.strip_prefix('/').unwrap_or(target);
+
+    let mut parts: Vec<&str> = base_dir.split('/').filter(|s| !s.is_empty()).collect();
+    for seg in target.split('/') {
+        match seg {
+            "" | "." => {}
+            ".." => {
+                // Don't allow escaping the base dir.
+                if !parts.is_empty() {
+                    parts.pop();
+                }
+            }
+            _ => parts.push(seg),
+        }
+    }
+
+    parts.join("/")
 }
 
 /// Parse the shared strings table.
@@ -218,5 +339,33 @@ mod tests {
     fn test_resolve_number() {
         let value = resolve_cell_value("42.5", &None, &[]);
         assert_eq!(value, "42.5");
+    }
+
+    #[test]
+    fn test_enumerate_sheets_from_rels_and_workbook() {
+        let workbook = r#"<?xml version="1.0" encoding="UTF-8"?>
+<workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>
+    <sheet name="Sheet1" sheetId="1" r:id="rId1"/>
+    <sheet name="Sheet2" sheetId="2" r:id="rId2"/>
+  </sheets>
+</workbook>"#;
+
+        let rels = r#"<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Target="worksheets/sheet2.xml"/>
+</Relationships>"#;
+
+        let rids = parse_workbook_sheet_rids(workbook).unwrap();
+        assert_eq!(rids, vec!["rId1".to_string(), "rId2".to_string()]);
+
+        let map = parse_relationships(rels).unwrap();
+        assert_eq!(map.get("rId1").unwrap(), "worksheets/sheet1.xml");
+
+        let p1 = resolve_ooxml_target("xl", map.get("rId1").unwrap());
+        let p2 = resolve_ooxml_target("xl", map.get("rId2").unwrap());
+        assert_eq!(p1, "xl/worksheets/sheet1.xml");
+        assert_eq!(p2, "xl/worksheets/sheet2.xml");
     }
 }
