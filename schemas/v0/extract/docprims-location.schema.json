@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.3leaps.dev/docprims/extract/v0/docprims-location.schema.json",
+  "title": "docprims location (v0)",
+  "type": "object",
+  "required": ["kind", "container"],
+  "properties": {
+    "kind": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Format-specific locator kind, e.g. 'docx:locator'."
+    },
+    "container": {
+      "$ref": "#/$defs/container"
+    },
+    "hints": {
+      "type": "object",
+      "description": "Format-specific locator data (unstable; evolves within v0).",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "container": {
+      "type": "object",
+      "required": ["kind", "path"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["file", "archive"],
+          "description": "The outer container type. 'archive' implies an embedded part path."
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Input path or URI as provided to the extractor."
+        },
+        "part": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Archive-internal part path (e.g. 'word/document.xml'). Required when kind='archive'."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "kind": { "const": "archive" } },
+            "required": ["kind"]
+          },
+          "then": {
+            "required": ["part"]
+          }
+        }
+      ],
+      "additionalProperties": false
+    }
+  }
+}

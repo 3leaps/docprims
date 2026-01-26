@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.3leaps.dev/docprims/extract/v0/docprims-extract.schema.json",
+  "title": "docprims extract result (v0)",
+  "type": "object",
+  "required": ["schema_id", "schema_version", "generator", "source", "document"],
+  "properties": {
+    "schema_id": {
+      "type": "string",
+      "const": "https://schemas.3leaps.dev/docprims/extract/v0/docprims-extract.schema.json"
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Contract version for v0 payloads.",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "generator": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "object",
+      "required": ["uri", "format"],
+      "properties": {
+        "uri": { "type": "string", "minLength": 1 },
+        "format": {
+          "type": "object",
+          "required": ["family", "kind"],
+          "properties": {
+            "family": { "type": "string", "minLength": 1 },
+            "kind": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
+        "sha256": {
+          "type": "string",
+          "description": "Optional lowercase hex sha256 of source bytes.",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "document": {
+      "type": "object",
+      "required": ["quality", "text", "blocks"],
+      "properties": {
+        "quality": {
+          "type": "object",
+          "required": ["status"],
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": ["complete", "partial"]
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": { "status": { "const": "partial" } },
+                "required": ["status"]
+              },
+              "then": {
+                "required": ["reason"]
+              }
+            }
+          ],
+          "additionalProperties": false
+        },
+        "text": {
+          "type": "string",
+          "description": "Full extracted text. Blocks reference this via doc_text_range."
+        },
+        "blocks": {
+          "type": "array",
+          "items": { "$ref": "docprims-block.schema.json" }
+        },
+        "warnings": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Optional document metadata.",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

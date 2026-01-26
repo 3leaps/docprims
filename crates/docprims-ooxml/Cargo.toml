@@ -1,0 +1,21 @@
+[package]
+name = "docprims-ooxml"
+description = "Office Open XML (DOCX, XLSX, PPTX) text extraction for docprims"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[features]
+default = ["docx", "xlsx", "pptx"]
+docx = []
+xlsx = []
+pptx = []
+
+[dependencies]
+docprims-core = { workspace = true }
+quick-xml = { workspace = true }
+zip = { workspace = true }
+encoding_rs = { workspace = true }

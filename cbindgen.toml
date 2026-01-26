@@ -1,0 +1,34 @@
+# cbindgen configuration for docprims FFI
+# Generates C header from Rust FFI exports
+
+language = "C"
+include_guard = "DOCPRIMS_H"
+tab_width = 4
+style = "both"
+
+[defines]
+"target_os = windows" = "DOCPRIMS_WINDOWS"
+"target_os = macos" = "DOCPRIMS_MACOS"
+"target_os = linux" = "DOCPRIMS_LINUX"
+
+[export]
+include = []
+exclude = []
+
+[export.rename]
+
+[fn]
+rename_args = "None"
+
+[struct]
+rename_fields = "None"
+
+[enum]
+rename_variants = "None"
+
+[parse]
+parse_deps = false
+clean = false
+
+[parse.expand]
+crates = ["docprims-ffi"]

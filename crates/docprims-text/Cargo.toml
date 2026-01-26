@@ -1,0 +1,25 @@
+[package]
+name = "docprims-text"
+description = "Text-based format extraction (Markdown, HTML, XML) for docprims"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[features]
+default = ["markdown", "html", "xml"]
+markdown = ["dep:pulldown-cmark"]
+html = ["dep:scraper"]
+xml = ["dep:quick-xml"]
+
+[dependencies]
+docprims-core = { workspace = true }
+pulldown-cmark = { workspace = true, optional = true }
+scraper = { workspace = true, optional = true }
+quick-xml = { workspace = true, optional = true }
+
+[dev-dependencies]
+jsonschema = "0.32"
+serde_json = { workspace = true }

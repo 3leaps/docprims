@@ -1,0 +1,18 @@
+[package]
+name = "docprims-ffi"
+description = "C-ABI FFI for docprims document text extraction"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[lib]
+crate-type = ["staticlib", "cdylib"]
+
+[dependencies]
+docprims-core = { workspace = true }
+docprims-text = { workspace = true }
+docprims-ooxml = { workspace = true }
+serde_json = { workspace = true }

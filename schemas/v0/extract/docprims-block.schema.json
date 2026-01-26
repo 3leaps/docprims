@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.3leaps.dev/docprims/extract/v0/docprims-block.schema.json",
+  "title": "docprims block (v0)",
+  "type": "object",
+  "required": ["id", "kind", "text", "doc_text_range", "loc"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Deterministic identifier within a single extraction result."
+    },
+    "kind": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Format-specific block kind, e.g. 'docx:paragraph'."
+    },
+    "text": {
+      "type": "string",
+      "description": "The block's text content, as reflected in document.text."
+    },
+    "doc_text_range": {
+      "type": "object",
+      "required": ["start_byte", "end_byte"],
+      "properties": {
+        "start_byte": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Start UTF-8 byte offset within document.text (inclusive)."
+        },
+        "end_byte": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "End UTF-8 byte offset within document.text (exclusive)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "loc": {
+      "$ref": "docprims-location.schema.json"
+    },
+    "children": {
+      "type": "array",
+      "description": "Optional structure edges. In flat mode, all leaves still appear in document.blocks.",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "role": {
+      "type": "string",
+      "description": "Optional cross-format semantic role hint (unstable; evolves within v0)."
+    }
+  },
+  "additionalProperties": false
+}

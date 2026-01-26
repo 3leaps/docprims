@@ -1,0 +1,95 @@
+# goneat assess configuration for docprims
+# Rust project with FFI bindings
+#
+# NOTE: goneat v0.5.x may have Rust support.
+# This config handles both Rust checks and ancillary files (YAML, shell, GitHub Actions).
+#
+# Run with: goneat assess --categories format
+#           goneat assess --categories lint
+#           goneat assess --all
+
+version: 1
+
+# Rust toolchain checks
+# goneat v0.5.x should support these - if not, fallback to Makefile
+rust:
+  fmt:
+    enabled: true
+    fix: true
+    command: cargo fmt --all
+    check_command: cargo fmt --all -- --check
+  clippy:
+    enabled: true
+    deny_warnings: true
+    command: cargo clippy --workspace --all-targets -- -D warnings
+  deny:
+    enabled: true
+    command: cargo deny check
+  paths:
+    - "crates/**/*.rs"
+    - "ffi/**/*.rs"
+  ignore:
+    - "**/target/**"
+
+format:
+  # YAML formatting
+  yamlfmt:
+    enabled: true
+    fix: true
+    paths:
+      - ".github/workflows/**/*.yml"
+      - ".github/workflows/**/*.yaml"
+      - ".goneat/**/*.yaml"
+    ignore: []
+
+lint:
+  # YAML linting (CI workflows, configs)
+  yamllint:
+    enabled: true
+    strict: true
+    paths:
+      - ".github/workflows/**/*.yml"
+      - ".github/workflows/**/*.yaml"
+      - ".goneat/**/*.yaml"
+    ignore: []
+
+  # Shell script linting
+  shell:
+    shfmt:
+      enabled: true
+      fix: true
+    shellcheck:
+      enabled: false
+      path: ""
+    paths:
+      - "**/*.sh"
+      - "scripts/**/*.sh"
+    ignore:
+      - "**/target/**"
+      - "**/.git/**"
+      - ".plans/**"
+
+  # GitHub Actions linting
+  github_actions:
+    actionlint:
+      enabled: true
+      paths:
+        - ".github/workflows/**/*.yml"
+        - ".github/workflows/**/*.yaml"
+      ignore: []
+
+  # Makefile linting
+  make:
+    checkmake:
+      enabled: true
+      config:
+        max_body_length: 70
+        min_phony_targets:
+          - all
+          - clean
+          - test
+          - check
+          - build
+    paths:
+      - "**/Makefile"
+    ignore: []

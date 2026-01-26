@@ -1,0 +1,45 @@
+# Rust
+/target/
+Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Planning docs (local only)
+.plans/
+
+# Local agent guidance
+AGENTS.local.md
+
+# Build artifacts
+/bin/
+/dist/
+
+# FFI build outputs
+*.dylib
+*.so
+*.dll
+*.a
+!ffi-libs/**/*.a
+
+# Go bindings local builds
+bindings/go/docprims/lib/local/
+
+# Test artifacts
+*.profraw
+*.profdata
+
+# Environment
+.env
+.env.local
+
+# Temporary files
+.tmp/
+*.tmp

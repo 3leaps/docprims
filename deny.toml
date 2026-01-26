@@ -1,0 +1,49 @@
+# cargo-deny configuration for docprims
+# GPL-free document extraction primitives
+#
+# Run: cargo deny check
+
+[advisories]
+db-path = "~/.cargo/advisory-db"
+db-urls = ["https://github.com/rustsec/advisory-db"]
+ignore = []
+
+[licenses]
+# All licenses are denied unless explicitly allowed
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "CC0-1.0",
+    "MPL-2.0",  # Weak copyleft, acceptable for linking
+]
+confidence-threshold = 0.8
+
+[[licenses.clarify]]
+name = "encoding_rs"
+expression = "(Apache-2.0 OR MIT) AND BSD-3-Clause"
+license-files = [{ path = "LICENSE", hash = 0x001c7e6c }]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "allow"
+highlight = "all"
+
+# Deny GPL and LGPL - this is the core mission of docprims
+deny = [
+    { name = "poppler-rs" },      # GPL
+    { name = "mupdf" },           # AGPL
+    { name = "mupdf-sys" },       # AGPL
+    { name = "lopdf", version = "<0.30" },  # Older versions had issues
+]
+
+[sources]
+unknown-registry = "warn"
+unknown-git = "warn"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
