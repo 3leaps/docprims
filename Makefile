@@ -13,6 +13,7 @@
 .PHONY: build-release build-ffi cbindgen
 .PHONY: build-local-go go-test
 .PHONY: version-patch version-minor version-major version-set version-sync
+.PHONY: check-windows check-windows-msvc check-windows-gnu
 
 # -----------------------------------------------------------------------------
 # Configuration
@@ -68,7 +69,8 @@ help: ## Show available targets
 	@echo "  deny            Run cargo-deny license and advisory checks"
 	@echo "  audit           Run cargo-audit security scan"
 	@echo "  miri            Run Miri UB detection on unsafe code (nightly)"
-	@echo "  msrv            Verify build with MSRV (Rust 1.81)"
+	@echo "  msrv            Verify build with MSRV (Rust 1.85)"
+	@echo "  check-windows   Cross-check Windows targets (no SDK required)"
 	@echo ""
 	@echo "Version management:"
 	@echo "  version         Print current version"
@@ -138,6 +140,12 @@ bootstrap: ## Install required tools (sfetch -> goneat -> tools)
 	@if command -v goneat >/dev/null 2>&1; then \
 		goneat doctor tools --scope rust --install || echo "[--] Some tools may need manual install"; \
 	fi
+	@echo ""
+	@# Step 4: Add Windows cross-check targets (optional, no SDK needed)
+	@echo "[..] Adding Windows cross-check targets..."
+	@rustup target add x86_64-pc-windows-msvc 2>/dev/null || true
+	@rustup target add x86_64-pc-windows-gnu 2>/dev/null || true
+	@echo "[ok] Windows targets available (run 'make check-windows' to validate)"
 	@echo ""
 	@echo "[ok] Bootstrap complete"
 	@echo ""
@@ -265,6 +273,32 @@ msrv: ## Verify build with Minimum Supported Rust Version (1.85)
 		exit 1; \
 	fi
 	@echo "[ok] MSRV check passed"
+
+# -----------------------------------------------------------------------------
+# Windows Cross-Check (no SDK required)
+# See: .plans/active/v0.1.0/07-windows-cross-check-validation.md
+# -----------------------------------------------------------------------------
+
+check-windows: check-windows-msvc check-windows-gnu ## Cross-check both Windows targets
+	@echo "[ok] Windows cross-check passed"
+
+check-windows-msvc: ## Cross-check Windows MSVC target (type checking only)
+	@echo "Cross-checking Windows MSVC target..."
+	@if ! rustup target list --installed | grep -q x86_64-pc-windows-msvc; then \
+		echo "[..] Installing x86_64-pc-windows-msvc target..."; \
+		rustup target add x86_64-pc-windows-msvc; \
+	fi
+	$(CARGO) check --target x86_64-pc-windows-msvc --workspace
+	@echo "[ok] Windows MSVC check passed"
+
+check-windows-gnu: ## Cross-check Windows GNU target (type checking only)
+	@echo "Cross-checking Windows GNU target..."
+	@if ! rustup target list --installed | grep -q x86_64-pc-windows-gnu; then \
+		echo "[..] Installing x86_64-pc-windows-gnu target..."; \
+		rustup target add x86_64-pc-windows-gnu; \
+	fi
+	$(CARGO) check --target x86_64-pc-windows-gnu --workspace
+	@echo "[ok] Windows GNU check passed"
 
 deps-check: ## Check dependencies for cooling violations
 	@echo "Checking dev dependencies..."
