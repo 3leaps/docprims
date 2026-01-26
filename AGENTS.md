@@ -3,10 +3,11 @@
 ## Read First
 
 1. Check `AGENTS.local.md` if it exists (gitignored, tactical session guidance)
-2. Note: `.plans/` is always local-only (gitignored). Do not read or rely on `.plans/` for canonical project requirements.
-3. Read `MAINTAINERS.md` for contacts and governance
-4. Review this document for operational protocols
-5. Understand: this is a **Rust library parsing untrusted input** - security is paramount
+2. Note: planning artifacts are out-of-band (OOB) and non-canonical.
+3. Read `docs/orientation/sources-of-truth.md` for what is canonical
+4. Read `MAINTAINERS.md` for contacts and governance
+5. Review this document for operational protocols
+6. Understand: this is a **Rust library parsing untrusted input** - security is paramount
 
 ## Operating Model
 
@@ -31,7 +32,7 @@ See [agent-identity standard](https://crucible.3leaps.dev/repository/agent-ident
 
 **docprims** is a GPL-free, cross-platform document text extraction library implemented in Rust with bindings for Go, TypeScript, and Python.
 
-**Core differentiator**: Extract text from documents without GPL license contamination.
+**Core differentiator**: Extract text from documents without copyleft license obligations.
 
 **Key principle**: Reliable text extraction from untrusted documents, safely embeddable in commercial software.
 
@@ -74,7 +75,7 @@ This repository does not use committed continuation prompts. The `.plans/` direc
 is always local-only (gitignored) and must never be committed.
 
 If you need tactical session guidance, use `AGENTS.local.md` (gitignored) or coordinate
-with the maintainer via the issue/PR description.
+with the maintainer via the work item description (issue/PR ticket/etc.).
 
 ### Continuation Prompt Format
 

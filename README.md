@@ -1,13 +1,13 @@
 # docprims
 
-GPL-free document text extraction primitives.
+Document text extraction without license constraints.
 
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](LICENSE-MIT)
 [![Rust](https://img.shields.io/badge/rust-1.81%2B-orange.svg)](https://www.rust-lang.org/)
 
 ## Overview
 
-**docprims** extracts text from documents without GPL license contamination. Use it to build content analysis tools, search indexers, or document processors that can be safely embedded in commercial software.
+**docprims** extracts text from documents with permissive licensing throughout. Use it to build content analysis tools, search indexers, or document processors that can be statically linked and embedded in commercial software.
 
 ### Supported Formats
 
@@ -21,15 +21,25 @@ GPL-free document text extraction primitives.
 | HTML     | `docprims-text`  | Planned |
 | XML      | `docprims-text`  | Planned |
 
-### Why docprims?
+### The Problem
 
-Most document extraction libraries are GPL-licensed (poppler, mupdf). If you need to:
+You need to extract text from PDFs, Word documents, or spreadsheets. Your options:
 
-- Build commercial software with document extraction
-- Statically link a document parser
-- Avoid GPL license obligations
+1. **Use established libraries** — Tools like poppler or mupdf work well, but their copyleft licenses restrict how you can distribute your software
+2. **Roll your own** — Format specs are complex; PDF alone has decades of edge cases
+3. **Pay for commercial solutions** — Often expensive and still come with licensing constraints
 
-...then you need a permissively-licensed alternative. That's docprims.
+docprims offers a fourth path: MIT/Apache-2.0 licensed extraction that you can statically link, embed in commercial software, or ship without copyleft obligations.
+
+### Who Should Use This
+
+**AI/ML Engineers**: Building pipelines that ingest documents for training, RAG, or content analysis. You need extraction without license overhead in your data stack.
+
+**Platform Teams**: Your legal department has opinions about copyleft licenses in your software supply chain. docprims is designed for environments where license hygiene matters.
+
+**Document Processing SaaS**: Building products that handle customer documents. Embedding a permissively-licensed extractor simplifies your licensing story.
+
+**Open Source Projects**: Avoiding license compatibility debates. MIT/Apache-2.0 is unambiguous.
 
 ## Installation
 
@@ -99,6 +109,9 @@ docprims/
 
 ## Development
 
+Project documentation conventions (what is canonical vs planning notes):
+`docs/orientation/sources-of-truth.md`
+
 ### Prerequisites
 
 - Rust 1.81+
@@ -121,6 +134,34 @@ make deny         # Check licenses (GPL-free enforcement)
 make audit        # Security vulnerability scan
 ```
 
+## Supply Chain
+
+docprims is designed for environments where dependency hygiene matters:
+
+- **License-clean**: All dependencies use MIT, Apache-2.0, or compatible licenses
+- **Auditable**: Run `cargo tree` to inspect the full dependency graph
+- **SBOM-ready**: Compatible with `cargo sbom`
+- **No runtime network calls**: All functionality is local
+
+```bash
+# Check dependencies
+cargo deny check licenses
+
+# Audit for vulnerabilities
+cargo audit
+```
+
+## Prior Art
+
+docprims builds on ideas from others in this space:
+
+- **[poppler](https://poppler.freedesktop.org/)** — Excellent PDF rendering library (GPL). If copyleft works for your use case, it's battle-tested.
+- **[mupdf](https://mupdf.com/)** — High-quality document toolkit (AGPL). Commercial licenses available.
+- **[calamine](https://github.com/tafia/calamine)** — MIT-licensed Rust XLSX/ODS reader. Good reference for spreadsheet parsing.
+- **[pdf-rs](https://github.com/nicowilliams/pdf-rs)** — MIT-licensed Rust PDF parsing.
+
+We're not claiming to replace these projects. docprims fills a specific niche: embeddable, license-clean document extraction with first-class bindings.
+
 ## License
 
 Licensed under either of:
@@ -134,8 +175,8 @@ Subject to [3 Leaps OSS policies](https://github.com/3leaps/oss-policies).
 
 ## Related Projects
 
-- [sysprims](https://github.com/3leaps/sysprims) - GPL-free process utilities (sibling project)
-- [Gentry](https://github.com/fulmenhq/gentry) - Content protection scanner (primary consumer)
+- **[sysprims](https://github.com/3leaps/sysprims)** — Process control primitives with the same licensing philosophy (sibling project)
+- **[Gentry](https://github.com/fulmenhq/gentry)** — Content protection scanner (primary consumer of docprims)
 
 ## Contributing
 
