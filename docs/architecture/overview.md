@@ -176,7 +176,7 @@ Blocks are the primary unit for consumer scanning, context windows, and provenan
 
 ```json
 {
-  "id": "docx:p:0",
+  "id": "docx:paragraph:0",
   "kind": "docx:paragraph",
   "text": "Hello World",
   "doc_text_range": { "start_byte": 0, "end_byte": 11 },
