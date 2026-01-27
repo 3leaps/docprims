@@ -23,6 +23,24 @@ pub const DOCPRIMS_V0_WARN_TRUNCATED_MAX_OUTPUT_BYTES: &str =
 pub const DOCPRIMS_V0_PARTIAL_MAX_BLOCKS: &str = "docprims:v0:partial:max_blocks";
 pub const DOCPRIMS_V0_PARTIAL_MAX_OUTPUT_BYTES: &str = "docprims:v0:partial:max_output_bytes";
 
+/// Truncate a string to a UTF-8 boundary at or below `max_bytes`.
+///
+/// This is used to enforce byte-based output limits while preserving valid UTF-8.
+pub fn truncate_to_utf8_boundary(s: &str, max_bytes: usize) -> &str {
+    if s.len() <= max_bytes {
+        return s;
+    }
+
+    let mut last = 0;
+    for (i, _) in s.char_indices() {
+        if i > max_bytes {
+            break;
+        }
+        last = i;
+    }
+    &s[..last]
+}
+
 /// Errors that can occur during document extraction.
 #[derive(Error, Debug)]
 pub enum DocprimsError {
@@ -350,7 +368,7 @@ pub struct DocprimsContainer {
     pub part: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum DocprimsContainerKind {
     File,

@@ -54,21 +54,6 @@ pub fn extract_markdown_str(content: &str) -> Result<ExtractedText> {
     markdown::extract(content)
 }
 
-pub(crate) fn truncate_to_utf8_boundary(s: &str, max_bytes: usize) -> &str {
-    if s.len() <= max_bytes {
-        return s;
-    }
-
-    let mut last = 0;
-    for (i, _) in s.char_indices() {
-        if i > max_bytes {
-            break;
-        }
-        last = i;
-    }
-    &s[..last]
-}
-
 fn read_file_limited(path: &Path, max_bytes: usize) -> Result<Vec<u8>> {
     let meta = std::fs::metadata(path)?;
     if meta.len() as usize > max_bytes {

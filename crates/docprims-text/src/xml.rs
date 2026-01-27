@@ -174,7 +174,7 @@ pub fn extract_v0_str(
         let remaining = limits.max_output_bytes.saturating_sub(doc_text.len());
         let text = if text.len() > remaining {
             truncated_output = true;
-            crate::truncate_to_utf8_boundary(&text, remaining).to_string()
+            docprims_core::truncate_to_utf8_boundary(&text, remaining).to_string()
         } else {
             text
         };
