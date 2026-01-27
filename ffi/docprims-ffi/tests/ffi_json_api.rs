@@ -217,6 +217,8 @@ fn ffi_extract_bytes_json_requires_source_uri_extension() {
     assert_eq!(code, DocprimsErrorCode::DataInvalid);
     assert!(out.is_null());
     assert_eq!(docprims_last_error_code(), DocprimsErrorCode::DataInvalid);
+    let msg = unsafe { read_and_free(docprims_last_error()) };
+    assert!(msg.contains("missing extension"));
 }
 
 #[test]

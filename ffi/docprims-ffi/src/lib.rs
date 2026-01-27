@@ -308,6 +308,14 @@ pub unsafe extern "C" fn docprims_extract_bytes_json(
         .map(|e| e.to_lowercase())
         .unwrap_or_default();
 
+    if ext.is_empty() {
+        error::set_last_error(
+            DocprimsErrorCode::DataInvalid,
+            "unsupported format: missing extension in source_uri".to_string(),
+        );
+        return DocprimsErrorCode::DataInvalid;
+    }
+
     let bytes = std::slice::from_raw_parts(data, len);
     let extracted = match ext.as_str() {
         "docx" => docprims_ooxml::extract_docx_v0_reader(
