@@ -4,8 +4,9 @@ use std::ffi::{CStr, CString};
 use std::path::{Path, PathBuf};
 
 use docprims_ffi::{
-    docprims_abi_version, docprims_clear_error, docprims_extract_file_json, docprims_free_string,
-    docprims_last_error, docprims_last_error_code, docprims_version, DocprimsErrorCode,
+    docprims_abi_version, docprims_clear_error, docprims_extract_bytes_json,
+    docprims_extract_file_json, docprims_free_string, docprims_last_error,
+    docprims_last_error_code, docprims_version, DocprimsErrorCode,
 };
 
 fn repo_root() -> PathBuf {
@@ -165,4 +166,84 @@ fn ffi_extract_file_json_ooxml_file_works_with_base64_fixture() {
     );
 
     let _ = std::fs::remove_file(docx_path);
+}
+
+#[test]
+fn ffi_extract_bytes_json_markdown_success() {
+    docprims_clear_error();
+
+    let data = b"# H\n\npara\n";
+    let src = CString::new("mem://input.md").unwrap();
+    let mut out: *mut std::os::raw::c_char = std::ptr::null_mut();
+    let code = unsafe {
+        docprims_extract_bytes_json(
+            data.as_ptr(),
+            data.len(),
+            src.as_ptr(),
+            std::ptr::null(),
+            &mut out,
+        )
+    };
+    assert_eq!(code, DocprimsErrorCode::Ok);
+    let json = unsafe { read_and_free(out) };
+    let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(
+        v.pointer("/source/uri").and_then(|v| v.as_str()),
+        Some("mem://input.md")
+    );
+    assert_eq!(
+        v.pointer("/source/format/kind").and_then(|v| v.as_str()),
+        Some("markdown")
+    );
+}
+
+#[test]
+fn ffi_extract_bytes_json_requires_source_uri_extension() {
+    docprims_clear_error();
+
+    let data = b"hi";
+    let src = CString::new("mem://input").unwrap();
+    let mut out: *mut std::os::raw::c_char = std::ptr::null_mut();
+    let code = unsafe {
+        docprims_extract_bytes_json(
+            data.as_ptr(),
+            data.len(),
+            src.as_ptr(),
+            std::ptr::null(),
+            &mut out,
+        )
+    };
+
+    assert_eq!(code, DocprimsErrorCode::DataInvalid);
+    assert!(out.is_null());
+    assert_eq!(docprims_last_error_code(), DocprimsErrorCode::DataInvalid);
+}
+
+#[test]
+fn ffi_extract_bytes_json_ooxml_success_from_base64_fixture() {
+    docprims_clear_error();
+
+    let b64 =
+        std::fs::read_to_string(repo_root().join("testdata/fixtures/ooxml/mini.docx.b64")).unwrap();
+    let compact: String = b64.lines().map(|l| l.trim()).collect();
+    let bytes = STANDARD.decode(compact.as_bytes()).unwrap();
+    let src = CString::new("mem://upload.docx").unwrap();
+
+    let mut out: *mut std::os::raw::c_char = std::ptr::null_mut();
+    let code = unsafe {
+        docprims_extract_bytes_json(
+            bytes.as_ptr(),
+            bytes.len(),
+            src.as_ptr(),
+            std::ptr::null(),
+            &mut out,
+        )
+    };
+    assert_eq!(code, DocprimsErrorCode::Ok);
+    let json = unsafe { read_and_free(out) };
+    let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(
+        v.pointer("/source/format/kind").and_then(|v| v.as_str()),
+        Some("docx")
+    );
 }

@@ -232,6 +232,160 @@ pub unsafe extern "C" fn docprims_extract_file_json(
     }
 }
 
+/// Extract a schema-conformant v0 `DocprimsExtract` JSON string from in-memory bytes.
+///
+/// # Safety
+///
+/// - `data` must be non-null and valid for reads of `len` bytes (unless `len == 0`)
+/// - `source_uri` must be a valid NUL-terminated UTF-8 string and include a filename-like
+///   extension for format routing (e.g., `mem://upload.docx`)
+/// - `options_json` may be null; when non-null it must be UTF-8 JSON
+/// - `out_json` must be a valid pointer to a `char*` slot
+/// - On success, `*out_json` must be freed with `docprims_free_string()`
+#[no_mangle]
+pub unsafe extern "C" fn docprims_extract_bytes_json(
+    data: *const u8,
+    len: usize,
+    source_uri: *const c_char,
+    options_json: *const c_char,
+    out_json: *mut *mut c_char,
+) -> DocprimsErrorCode {
+    error::clear_last_error();
+
+    if out_json.is_null() {
+        error::set_last_error(DocprimsErrorCode::Usage, "out_json is null");
+        return DocprimsErrorCode::Usage;
+    }
+    *out_json = std::ptr::null_mut();
+
+    if data.is_null() && len != 0 {
+        error::set_last_error(DocprimsErrorCode::Usage, "data is null");
+        return DocprimsErrorCode::Usage;
+    }
+    if source_uri.is_null() {
+        error::set_last_error(DocprimsErrorCode::Usage, "source_uri is null");
+        return DocprimsErrorCode::Usage;
+    }
+
+    let source_uri_str = match CStr::from_ptr(source_uri).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            error::set_last_error(DocprimsErrorCode::Usage, "invalid UTF-8 in source_uri");
+            return DocprimsErrorCode::Usage;
+        }
+    };
+
+    let options = match error::read_opt_cstr(options_json) {
+        Ok(o) => o,
+        Err(code) => {
+            error::set_last_error(code, "invalid UTF-8 in options_json");
+            return code;
+        }
+    };
+
+    let limits = match parse_limits(options) {
+        Ok(l) => l,
+        Err(code) => {
+            error::set_last_error(code, "invalid options_json");
+            return code;
+        }
+    };
+
+    if len > limits.max_input_bytes {
+        error::set_last_error(
+            DocprimsErrorCode::ResourceLimit,
+            format!(
+                "input exceeds max_input_bytes ({} > {})",
+                len, limits.max_input_bytes
+            ),
+        );
+        return DocprimsErrorCode::ResourceLimit;
+    }
+
+    let ext = Path::new(source_uri_str)
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_lowercase())
+        .unwrap_or_default();
+
+    let bytes = std::slice::from_raw_parts(data, len);
+    let extracted = match ext.as_str() {
+        "docx" => docprims_ooxml::extract_docx_v0_reader(
+            std::io::Cursor::new(bytes),
+            source_uri_str,
+            limits,
+        ),
+        "xlsx" => docprims_ooxml::extract_xlsx_v0_reader(
+            std::io::Cursor::new(bytes),
+            source_uri_str,
+            limits,
+        ),
+        "pptx" => docprims_ooxml::extract_pptx_v0_reader(
+            std::io::Cursor::new(bytes),
+            source_uri_str,
+            limits,
+        ),
+        "md" | "markdown" => match std::str::from_utf8(bytes) {
+            Ok(s) => docprims_text::markdown::extract_v0_str(s, source_uri_str, limits),
+            Err(_) => {
+                let e = DocprimsError::Malformed("non-utf8 markdown input".to_string());
+                let code = map_err(&e);
+                error::set_last_error(code, e.to_string());
+                return code;
+            }
+        },
+        "html" | "htm" => match std::str::from_utf8(bytes) {
+            Ok(s) => docprims_text::html::extract_v0_str(s, source_uri_str, limits),
+            Err(_) => {
+                let e = DocprimsError::Malformed("non-utf8 html input".to_string());
+                let code = map_err(&e);
+                error::set_last_error(code, e.to_string());
+                return code;
+            }
+        },
+        "xml" => match std::str::from_utf8(bytes) {
+            Ok(s) => docprims_text::xml::extract_v0_str(s, source_uri_str, limits),
+            Err(_) => {
+                let e = DocprimsError::Malformed("non-utf8 xml input".to_string());
+                let code = map_err(&e);
+                error::set_last_error(code, e.to_string());
+                return code;
+            }
+        },
+        _ => Err(DocprimsError::UnknownFormat(ext)),
+    };
+
+    match extracted {
+        Ok(extract) => {
+            let json = match serde_json::to_string(&extract) {
+                Ok(s) => s,
+                Err(e) => {
+                    error::set_last_error(
+                        DocprimsErrorCode::Internal,
+                        format!("error serializing result: {e}"),
+                    );
+                    return DocprimsErrorCode::Internal;
+                }
+            };
+            match CString::new(json) {
+                Ok(s) => {
+                    *out_json = s.into_raw();
+                    DocprimsErrorCode::Ok
+                }
+                Err(_) => {
+                    error::set_last_error(DocprimsErrorCode::Internal, "json contains null byte");
+                    DocprimsErrorCode::Internal
+                }
+            }
+        }
+        Err(e) => {
+            let code = map_err(&e);
+            error::set_last_error(code, e.to_string());
+            code
+        }
+    }
+}
+
 // ==========================================================================
 // Tests
 // ==========================================================================
