@@ -30,5 +30,5 @@ rename_variants = "None"
 parse_deps = false
 clean = false
 
-[parse.expand]
-crates = ["docprims-ffi"]
+# NOTE: Keep cbindgen working on stable toolchains.
+# We avoid parse expansion, which requires nightly (-Zunpretty=expanded).

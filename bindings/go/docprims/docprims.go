@@ -1,35 +1,14 @@
 package docprims
 
 /*
+#cgo CFLAGS: -I${SRCDIR}/../../../ffi/docprims-ffi
 #cgo darwin LDFLAGS: -L${SRCDIR}/../../../target/release -ldocprims_ffi
 #cgo linux LDFLAGS: -L${SRCDIR}/../../../target/release -ldocprims_ffi
 
-#include <stddef.h>
-#include <stdlib.h>
-#include <stdint.h>
+#include "docprims.h"
 
-typedef enum {
-  DOCPRIMS_OK = 0,
-  DOCPRIMS_INTERNAL = 1,
-  DOCPRIMS_DATA_INVALID = 60,
-  DOCPRIMS_USAGE = 64,
-  DOCPRIMS_RESOURCE_LIMIT = 70,
-  DOCPRIMS_IO = 74,
-} DocprimsErrorCode;
-
-DocprimsErrorCode docprims_extract_bytes_json(
-    const uint8_t* data,
-    size_t len,
-    const char* source_uri,
-    const char* options_json,
-    char** out_json);
-
-DocprimsErrorCode docprims_last_error_code(void);
-char* docprims_last_error(void);
-void docprims_clear_error(void);
-void docprims_free_string(char* s);
-const char* docprims_version(void);
-uint32_t docprims_abi_version(void);
+// Ensure a stable Go-visible type for Rust usize parameters.
+typedef uintptr_t docprims_usize_t;
 */
 import "C"
 
@@ -108,8 +87,14 @@ func ExtractBytes(sourceURI string, data []byte, opts *Options) ([]byte, error) 
 		pData = (*C.uint8_t)(unsafe.Pointer(&data[0]))
 	}
 
-	code := C.docprims_extract_bytes_json(pData, C.size_t(len(data)), cSource, cOpts, &out)
-	if code != C.DOCPRIMS_OK {
+	code := C.docprims_extract_bytes_json(
+		pData,
+		C.docprims_usize_t(len(data)),
+		cSource,
+		cOpts,
+		&out,
+	)
+	if code != 0 {
 		// Prefer the TLS error string for detail.
 		msg := C.docprims_last_error()
 		goMsg := ""
@@ -120,7 +105,7 @@ func ExtractBytes(sourceURI string, data []byte, opts *Options) ([]byte, error) 
 		return nil, &Error{Code: uint32(code), Message: goMsg}
 	}
 	if out == nil {
-		return nil, &Error{Code: uint32(C.DOCPRIMS_INTERNAL), Message: "missing out_json"}
+		return nil, &Error{Code: 1, Message: "missing out_json"}
 	}
 	defer C.docprims_free_string(out)
 	return []byte(C.GoString(out)), nil

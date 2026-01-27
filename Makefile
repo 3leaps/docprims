@@ -352,7 +352,7 @@ clean: ## Remove build artifacts
 
 GO_BINDINGS_DIR := bindings/go/docprims
 
-build-local-go: ## Build FFI for local Go development
+build-local-go: cbindgen ## Build FFI for local Go development
 	@echo "Building FFI for local Go development..."
 	$(CARGO) build --release -p docprims-ffi
 	@echo "[ok] FFI library built"

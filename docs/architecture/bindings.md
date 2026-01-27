@@ -113,7 +113,12 @@ docprims tracks sysprims platform direction. For v0.1.x we target a staggered ma
 - **Windows**: x64 and arm64
 - **Linux**: x64 and arm64
 
-Platform coverage is validated via CI in stages. If a platform is not covered yet, bindings must fail clearly (load/link errors should be actionable).
+Go note (Windows arm64): Go/cgo on Windows requires a GNU toolchain (MinGW). MinGW does not currently support
+Windows arm64, so Go bindings are expected to support Windows x64 only. Windows arm64 support is targeted for
+CLI and TypeScript first; Go may follow later via llvm-mingw or a different distribution strategy.
+
+Platform coverage is validated via CI in stages. If a platform is not covered yet, bindings must fail clearly
+(load/link errors should be actionable).
 
 ## Testing Strategy
 
