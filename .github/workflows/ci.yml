@@ -19,5 +19,28 @@ jobs:
       - name: Install cargo-deny
         run: cargo install cargo-deny --locked
 
+      - name: Install cbindgen
+        run: cargo install cbindgen --locked
+
       - name: Quality gates
         run: make check
+
+      - name: Verify generated C header is up to date
+        run: |
+          make cbindgen
+          git diff --exit-code ffi/docprims-ffi/docprims.h
+          diff -u ffi/docprims-ffi/docprims.h bindings/go/docprims/include/docprims.h
+
+  test-go-vendored:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+
+      - name: Run Go tests (vendored libs)
+        run: |
+          cd bindings/go/docprims
+          go test -v ./...
