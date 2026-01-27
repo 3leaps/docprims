@@ -183,7 +183,7 @@ pub struct ExtractOptions {
 /// Resource limits for extraction.
 ///
 /// These defaults are intentionally conservative since docprims parses untrusted input.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct ExtractLimits {
     pub max_input_bytes: usize,
     pub max_output_bytes: usize,

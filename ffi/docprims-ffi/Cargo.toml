@@ -16,3 +16,4 @@ docprims-core = { workspace = true }
 docprims-text = { workspace = true }
 docprims-ooxml = { workspace = true }
 serde_json = { workspace = true }
+serde = { workspace = true }
