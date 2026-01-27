@@ -371,29 +371,44 @@ See `docs/decisions/ADR-0004-stdout-purity.md` for the full contract.
 
 Bindings follow the sysprims pattern for cross-language FFI.
 
-### C-ABI Surface (Illustrative; subject to change in v0)
+### C-ABI Surface (Current)
 
 ```c
-// Extract from file path, returns JSON string
-char* docprims_extract(const char* path, const char* options_json);
+typedef enum {
+  DOCPRIMS_OK = 0,
+  DOCPRIMS_USAGE = 64,
+  DOCPRIMS_DATA_INVALID = 60,
+  DOCPRIMS_RESOURCE_LIMIT = 70,
+  DOCPRIMS_IO = 74,
+  DOCPRIMS_INTERNAL = 1
+} DocprimsErrorCode;
 
-// Extract from bytes, returns JSON string
-char* docprims_extract_bytes(
-    const uint8_t* data,
-    size_t len,
-    const char* options_json
+// Extract v0 DocprimsExtract JSON from a file path.
+// On success, *out_json is set and must be freed with docprims_free_string.
+DocprimsErrorCode docprims_extract_file_json(
+  const char* path,
+  const char* options_json,
+  char** out_json
 );
 
-// Free returned string
+// Thread-local error reporting.
+DocprimsErrorCode docprims_last_error_code(void);
+char* docprims_last_error(void);
+void docprims_clear_error(void);
+
+// Memory management.
 void docprims_free_string(char* ptr);
 
-// Get last error as JSON
-char* docprims_last_error(void);
+// Versioning.
+const char* docprims_version(void);
+uint32_t docprims_abi_version(void);
 ```
 
-Note: The stable requirement is the *pattern* (single JSON string for `DocprimsExtract`, explicit free function, and stable error reporting).
-The exact symbol names and signatures should be treated as draft until they are finalized in code and reflected in the schema/contract briefs.
-See `.plans/active/v0.1.0/03-cli-and-ffi-json-output-contract.md`.
+Notes:
+
+- Successful extraction returns a JSON string containing a schema-conformant v0 `DocprimsExtract`.
+- Error state is thread-local; `docprims_last_error()` returns a heap-allocated string and must be freed.
+- `docprims_version()` returns a static pointer and must not be freed.
 
 ### Return Format
 
