@@ -83,7 +83,17 @@ pub unsafe extern "C" fn docprims_free_string(s: *mut c_char) {
 #[derive(Debug, serde::Deserialize)]
 struct DocprimsExtractOptions {
     #[serde(default)]
-    limits: Option<ExtractLimits>,
+    limits: Option<ExtractLimitsOverrides>,
+}
+
+#[derive(Debug, Default, serde::Deserialize)]
+struct ExtractLimitsOverrides {
+    #[serde(default)]
+    max_input_bytes: Option<usize>,
+    #[serde(default)]
+    max_output_bytes: Option<usize>,
+    #[serde(default)]
+    max_blocks: Option<usize>,
 }
 
 fn map_err(e: &DocprimsError) -> DocprimsErrorCode {
@@ -107,7 +117,20 @@ fn parse_limits(options_json: Option<String>) -> Result<ExtractLimits, DocprimsE
 
     let opts: DocprimsExtractOptions =
         serde_json::from_str(&s).map_err(|_| DocprimsErrorCode::Usage)?;
-    Ok(opts.limits.unwrap_or_default())
+
+    let mut limits = ExtractLimits::default();
+    if let Some(overrides) = opts.limits {
+        if let Some(v) = overrides.max_input_bytes {
+            limits.max_input_bytes = v;
+        }
+        if let Some(v) = overrides.max_output_bytes {
+            limits.max_output_bytes = v;
+        }
+        if let Some(v) = overrides.max_blocks {
+            limits.max_blocks = v;
+        }
+    }
+    Ok(limits)
 }
 
 /// Extract a schema-conformant v0 `DocprimsExtract` JSON string from a file path.
