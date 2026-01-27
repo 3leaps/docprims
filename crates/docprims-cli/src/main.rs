@@ -6,7 +6,7 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand, ValueEnum};
-use docprims_core::{ExtractLimits, ExtractedText};
+use docprims_core::{DocprimsExtract, ExtractLimits, ExtractedText};
 use rsfulmen::foundry::exit_codes::{EXIT_DATA_INVALID, EXIT_FAILURE, EXIT_SUCCESS, EXIT_USAGE};
 use tracing::{debug, error, info};
 use tracing_subscriber::{filter::EnvFilter, fmt, prelude::*};
@@ -65,16 +65,28 @@ struct ExtractArgs {
     format: OutputFormat,
 
     /// Include document metadata in output.
+    ///
+    /// Note: v0 currently emits `document.metadata` as null.
     #[arg(long)]
     include_metadata: bool,
 
     /// Include structured blocks in JSON output.
-    #[arg(long)]
+    ///
+    /// Deprecated: JSON output is always schema-conformant `DocprimsExtract` and includes blocks.
+    #[arg(long, hide = true)]
     include_blocks: bool,
 
     /// Output as JSON array instead of NDJSON for multiple files.
     #[arg(long)]
     json_array: bool,
+
+    /// Pretty-print JSON output.
+    #[arg(long)]
+    pretty: bool,
+
+    /// Emit legacy JSON output (pre-contract).
+    #[arg(long, hide = true)]
+    legacy_json: bool,
 
     /// Maximum input file size in bytes.
     #[arg(long, value_name = "BYTES", default_value = "104857600")]
@@ -156,42 +168,166 @@ fn run_extract(args: ExtractArgs) -> Result<i32, CliError> {
         "Starting extraction"
     );
 
-    if use_array {
-        print!("[");
-    }
-
     let mut first = true;
     let mut had_errors = false;
 
-    for file in &args.files {
-        debug!(file = %file.display(), "Extracting");
+    // JSON output is the stable contract: emit schema-conformant v0 `DocprimsExtract` by default.
+    if args.format == OutputFormat::Json && !args.legacy_json {
+        if args.pretty && is_multi && !use_array {
+            // NDJSON requires one JSON object per line; pretty-print breaks that.
+            eprintln!("Warning: --pretty ignored for multi-file NDJSON output.");
+        }
+        let pretty = args.pretty && (!is_multi || use_array);
 
-        match extract_file(file, &args) {
-            Ok(text) => {
-                if use_array {
-                    if !first {
-                        print!(",");
-                    }
-                    first = false;
-                }
-                output_result(file, &text, &args);
-            }
-            Err(e) => {
-                error!(file = %file.display(), error = %e, "Extraction failed");
-                eprintln!("Error extracting {}: {}", file.display(), e);
-                had_errors = true;
+        if use_array {
+            if pretty {
+                println!("[");
+            } else {
+                print!("[");
             }
         }
-    }
 
-    if use_array {
-        println!("]");
+        for file in &args.files {
+            debug!(file = %file.display(), "Extracting");
+            match extract_file_v0(file, &args) {
+                Ok(extract) => {
+                    if use_array {
+                        if !first {
+                            print!(",");
+                            if pretty {
+                                println!();
+                            }
+                        }
+                        first = false;
+                    }
+
+                    let json = if pretty {
+                        serde_json::to_string_pretty(&extract).unwrap_or_else(|e| {
+                            eprintln!("Error serializing JSON: {e}");
+                            "{}".to_string()
+                        })
+                    } else {
+                        serde_json::to_string(&extract).unwrap_or_else(|e| {
+                            eprintln!("Error serializing JSON: {e}");
+                            "{}".to_string()
+                        })
+                    };
+
+                    println!("{json}");
+                }
+                Err(e) => {
+                    error!(file = %file.display(), error = %e, "Extraction failed");
+                    eprintln!("Error extracting {}: {}", file.display(), e);
+                    had_errors = true;
+                }
+            }
+        }
+
+        if use_array {
+            println!("]");
+        }
+    } else {
+        // Plain text output and legacy JSON output use ExtractedText.
+        if use_array {
+            print!("[");
+        }
+
+        for file in &args.files {
+            debug!(file = %file.display(), "Extracting");
+
+            match extract_file(file, &args) {
+                Ok(text) => {
+                    if use_array {
+                        if !first {
+                            print!(",");
+                        }
+                        first = false;
+                    }
+                    output_result(file, &text, &args);
+                }
+                Err(e) => {
+                    error!(file = %file.display(), error = %e, "Extraction failed");
+                    eprintln!("Error extracting {}: {}", file.display(), e);
+                    had_errors = true;
+                }
+            }
+        }
+
+        if use_array {
+            println!("]");
+        }
     }
 
     if had_errors {
         Ok(EXIT_DATA_INVALID)
     } else {
         Ok(EXIT_SUCCESS)
+    }
+}
+
+/// Extract schema-conformant v0 structured output from a single file.
+fn extract_file_v0(path: &PathBuf, args: &ExtractArgs) -> Result<DocprimsExtract, CliError> {
+    // Check file size first
+    let metadata = std::fs::metadata(path).map_err(|e| CliError::Io {
+        path: path.clone(),
+        source: e,
+    })?;
+
+    if metadata.len() as usize > args.max_input_bytes {
+        return Err(CliError::ResourceLimit {
+            path: path.clone(),
+            reason: format!(
+                "File size {} exceeds limit {}",
+                metadata.len(),
+                args.max_input_bytes
+            ),
+        });
+    }
+
+    let limits = ExtractLimits {
+        max_input_bytes: args.max_input_bytes,
+        ..ExtractLimits::default()
+    };
+
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_lowercase())
+        .unwrap_or_default();
+
+    match ext.as_str() {
+        "docx" => docprims_ooxml::extract_docx_v0(path, limits).map_err(|e| CliError::Extraction {
+            path: path.clone(),
+            source: e.to_string(),
+        }),
+        "xlsx" => docprims_ooxml::extract_xlsx_v0(path, limits).map_err(|e| CliError::Extraction {
+            path: path.clone(),
+            source: e.to_string(),
+        }),
+        "pptx" => docprims_ooxml::extract_pptx_v0(path, limits).map_err(|e| CliError::Extraction {
+            path: path.clone(),
+            source: e.to_string(),
+        }),
+        "md" | "markdown" => {
+            docprims_text::extract_markdown_v0(path, limits).map_err(|e| CliError::Extraction {
+                path: path.clone(),
+                source: e.to_string(),
+            })
+        }
+        "html" | "htm" => {
+            docprims_text::extract_html_v0(path, limits).map_err(|e| CliError::Extraction {
+                path: path.clone(),
+                source: e.to_string(),
+            })
+        }
+        "xml" => docprims_text::extract_xml_v0(path, limits).map_err(|e| CliError::Extraction {
+            path: path.clone(),
+            source: e.to_string(),
+        }),
+        _ => Err(CliError::UnsupportedFormat {
+            path: path.clone(),
+            extension: ext,
+        }),
     }
 }
 
@@ -261,198 +397,7 @@ fn output_result(path: &std::path::Path, text: &ExtractedText, args: &ExtractArg
             println!("{}", text.content);
         }
         OutputFormat::Json => {
-            // If requested, emit schema-conformant v0 output for formats that support blocks.
-            if args.include_blocks {
-                let ext = path
-                    .extension()
-                    .and_then(|e| e.to_str())
-                    .unwrap_or("unknown")
-                    .to_lowercase();
-
-                if ext == "md" || ext == "markdown" {
-                    let limits = ExtractLimits {
-                        max_input_bytes: args.max_input_bytes,
-                        ..ExtractLimits::default()
-                    };
-
-                    match docprims_text::extract_markdown_v0(path, limits) {
-                        Ok(extract) => {
-                            let json = if args.json_array {
-                                serde_json::to_string_pretty(&extract).unwrap_or_else(|e| {
-                                    eprintln!("Error serializing JSON: {e}");
-                                    "{}".to_string()
-                                })
-                            } else {
-                                serde_json::to_string(&extract).unwrap_or_else(|e| {
-                                    eprintln!("Error serializing JSON: {e}");
-                                    "{}".to_string()
-                                })
-                            };
-                            println!("{json}");
-                            return;
-                        }
-                        Err(e) => {
-                            eprintln!(
-                                "Error extracting structured blocks for {}: {}",
-                                path.display(),
-                                e
-                            );
-                        }
-                    }
-                } else if ext == "docx" {
-                    let limits = ExtractLimits {
-                        max_input_bytes: args.max_input_bytes,
-                        ..ExtractLimits::default()
-                    };
-
-                    match docprims_ooxml::extract_docx_v0(path, limits) {
-                        Ok(extract) => {
-                            let json = if args.json_array {
-                                serde_json::to_string_pretty(&extract).unwrap_or_else(|e| {
-                                    eprintln!("Error serializing JSON: {e}");
-                                    "{}".to_string()
-                                })
-                            } else {
-                                serde_json::to_string(&extract).unwrap_or_else(|e| {
-                                    eprintln!("Error serializing JSON: {e}");
-                                    "{}".to_string()
-                                })
-                            };
-                            println!("{json}");
-                            return;
-                        }
-                        Err(e) => {
-                            eprintln!(
-                                "Error extracting structured blocks for {}: {}",
-                                path.display(),
-                                e
-                            );
-                        }
-                    }
-                } else if ext == "xlsx" {
-                    let limits = ExtractLimits {
-                        max_input_bytes: args.max_input_bytes,
-                        ..ExtractLimits::default()
-                    };
-
-                    match docprims_ooxml::extract_xlsx_v0(path, limits) {
-                        Ok(extract) => {
-                            let json = if args.json_array {
-                                serde_json::to_string_pretty(&extract).unwrap_or_else(|e| {
-                                    eprintln!("Error serializing JSON: {e}");
-                                    "{}".to_string()
-                                })
-                            } else {
-                                serde_json::to_string(&extract).unwrap_or_else(|e| {
-                                    eprintln!("Error serializing JSON: {e}");
-                                    "{}".to_string()
-                                })
-                            };
-                            println!("{json}");
-                            return;
-                        }
-                        Err(e) => {
-                            eprintln!(
-                                "Error extracting structured blocks for {}: {}",
-                                path.display(),
-                                e
-                            );
-                        }
-                    }
-                } else if ext == "pptx" {
-                    let limits = ExtractLimits {
-                        max_input_bytes: args.max_input_bytes,
-                        ..ExtractLimits::default()
-                    };
-
-                    match docprims_ooxml::extract_pptx_v0(path, limits) {
-                        Ok(extract) => {
-                            let json = if args.json_array {
-                                serde_json::to_string_pretty(&extract).unwrap_or_else(|e| {
-                                    eprintln!("Error serializing JSON: {e}");
-                                    "{}".to_string()
-                                })
-                            } else {
-                                serde_json::to_string(&extract).unwrap_or_else(|e| {
-                                    eprintln!("Error serializing JSON: {e}");
-                                    "{}".to_string()
-                                })
-                            };
-                            println!("{json}");
-                            return;
-                        }
-                        Err(e) => {
-                            eprintln!(
-                                "Error extracting structured blocks for {}: {}",
-                                path.display(),
-                                e
-                            );
-                        }
-                    }
-                } else if ext == "html" || ext == "htm" {
-                    let limits = ExtractLimits {
-                        max_input_bytes: args.max_input_bytes,
-                        ..ExtractLimits::default()
-                    };
-
-                    match docprims_text::extract_html_v0(path, limits) {
-                        Ok(extract) => {
-                            let json = if args.json_array {
-                                serde_json::to_string_pretty(&extract).unwrap_or_else(|e| {
-                                    eprintln!("Error serializing JSON: {e}");
-                                    "{}".to_string()
-                                })
-                            } else {
-                                serde_json::to_string(&extract).unwrap_or_else(|e| {
-                                    eprintln!("Error serializing JSON: {e}");
-                                    "{}".to_string()
-                                })
-                            };
-                            println!("{json}");
-                            return;
-                        }
-                        Err(e) => {
-                            eprintln!(
-                                "Error extracting structured blocks for {}: {}",
-                                path.display(),
-                                e
-                            );
-                        }
-                    }
-                } else if ext == "xml" {
-                    let limits = ExtractLimits {
-                        max_input_bytes: args.max_input_bytes,
-                        ..ExtractLimits::default()
-                    };
-
-                    match docprims_text::extract_xml_v0(path, limits) {
-                        Ok(extract) => {
-                            let json = if args.json_array {
-                                serde_json::to_string_pretty(&extract).unwrap_or_else(|e| {
-                                    eprintln!("Error serializing JSON: {e}");
-                                    "{}".to_string()
-                                })
-                            } else {
-                                serde_json::to_string(&extract).unwrap_or_else(|e| {
-                                    eprintln!("Error serializing JSON: {e}");
-                                    "{}".to_string()
-                                })
-                            };
-                            println!("{json}");
-                            return;
-                        }
-                        Err(e) => {
-                            eprintln!(
-                                "Error extracting structured blocks for {}: {}",
-                                path.display(),
-                                e
-                            );
-                        }
-                    }
-                }
-            }
-
-            // Legacy JSON output (pre-contract); retained while other formats are implemented.
+            // Legacy JSON output (pre-contract).
             #[derive(serde::Serialize)]
             struct JsonOutput<'a> {
                 schema_version: &'static str,
@@ -527,14 +472,12 @@ fn output_result(path: &std::path::Path, text: &ExtractedText, args: &ExtractArg
                 },
             };
 
-            let json = if args.json_array {
-                // Pretty print for array mode
+            let json = if args.pretty {
                 serde_json::to_string_pretty(&output).unwrap_or_else(|e| {
                     eprintln!("Error serializing JSON: {e}");
                     "{}".to_string()
                 })
             } else {
-                // Compact for NDJSON
                 serde_json::to_string(&output).unwrap_or_else(|e| {
                     eprintln!("Error serializing JSON: {e}");
                     "{}".to_string()
