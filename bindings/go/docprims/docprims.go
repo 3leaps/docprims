@@ -1,9 +1,10 @@
 package docprims
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../../../ffi/docprims-ffi
-#cgo darwin LDFLAGS: -L${SRCDIR}/../../../target/release -ldocprims_ffi
-#cgo linux LDFLAGS: -L${SRCDIR}/../../../target/release -ldocprims_ffi
+// Common C definitions for all platforms.
+// Platform-specific linker flags live in cgo_*.go files.
+#include <stdint.h>
+#include <stdlib.h>
 
 #include "docprims.h"
 

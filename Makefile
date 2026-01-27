@@ -355,6 +355,23 @@ GO_BINDINGS_DIR := bindings/go/docprims
 build-local-go: cbindgen ## Build FFI for local Go development
 	@echo "Building FFI for local Go development..."
 	$(CARGO) build --release -p docprims-ffi
+	@# Sync header and local static lib into Go module layout
+	@PLATFORM=""; \
+	UNAME_S="$$(uname -s)"; \
+	UNAME_M="$$(uname -m)"; \
+	if [ "$$UNAME_S" = "Darwin" ] && [ "$$UNAME_M" = "arm64" ]; then PLATFORM="darwin-arm64"; \
+	elif [ "$$UNAME_S" = "Darwin" ] && [ "$$UNAME_M" = "x86_64" ]; then PLATFORM="darwin-amd64"; \
+	elif [ "$$UNAME_S" = "Linux" ] && [ "$$UNAME_M" = "x86_64" ]; then PLATFORM="linux-amd64"; \
+	elif [ "$$UNAME_S" = "Linux" ] && [ "$$UNAME_M" = "aarch64" ]; then PLATFORM="linux-arm64"; \
+	else PLATFORM="unknown"; fi; \
+	if [ "$$PLATFORM" != "unknown" ]; then \
+		mkdir -p "bindings/go/docprims/include"; \
+		mkdir -p "bindings/go/docprims/lib/local/$$PLATFORM"; \
+		cp "ffi/docprims-ffi/docprims.h" "bindings/go/docprims/include/docprims.h"; \
+		cp "target/release/libdocprims_ffi.a" "bindings/go/docprims/lib/local/$$PLATFORM/libdocprims_ffi.a"; \
+	else \
+		echo "[--] Unknown host platform for Go lib sync (uname: $$UNAME_S/$$UNAME_M)"; \
+	fi
 	@echo "[ok] FFI library built"
 
 go-test: build-local-go ## Run Go binding tests

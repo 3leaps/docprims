@@ -28,6 +28,7 @@ AGENTS.local.md
 *.dll
 *.a
 !ffi-libs/**/*.a
+!bindings/go/docprims/lib/**/*.a
 
 # Go bindings local builds
 bindings/go/docprims/lib/local/
