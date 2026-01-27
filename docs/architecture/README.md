@@ -7,6 +7,7 @@ They are not a roadmap.
 ## Index
 
 - `docs/architecture/overview.md` - System boundaries, contracts, and extension points.
+- `docs/architecture/bindings.md` - Binding design (Go/TypeScript) and platform policy.
 
 ## Related Decision Records
 

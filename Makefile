@@ -327,7 +327,7 @@ build-ffi: cbindgen ## Build FFI library with C header
 	@echo "Building FFI library..."
 	$(CARGO) build --package docprims-ffi --release
 	@echo "[ok] FFI build complete"
-	@echo "Library: target/release/libdocprims.*"
+	@echo "Library: target/release/libdocprims_ffi.*"
 	@echo "Header: ffi/docprims-ffi/docprims.h"
 
 cbindgen: ## Generate C header from FFI crate
@@ -359,6 +359,9 @@ build-local-go: ## Build FFI for local Go development
 
 go-test: build-local-go ## Run Go binding tests
 	@echo "Running Go tests..."
+	@# Ensure dynamic linker can find libdocprims for cgo tests
+	@DYLD_LIBRARY_PATH="$(CURDIR)/target/release" \
+	LD_LIBRARY_PATH="$(CURDIR)/target/release" \
 	cd $(GO_BINDINGS_DIR) && go test -v ./...
 	@echo "[ok] Go tests passed"
 
