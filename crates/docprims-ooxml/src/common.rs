@@ -68,7 +68,10 @@ pub fn read_archive_file<R: Read + Seek>(
 fn decode_xml_bytes(bytes: &[u8]) -> Result<String> {
     let (enc, bom_len) = detect_encoding_and_bom(bytes);
     let bytes = bytes.get(bom_len..).unwrap_or(bytes);
-    let (decoded, _, _) = enc.decode(bytes);
+    let (decoded, _, had_errors) = enc.decode(bytes);
+    // Best-effort decoding: allow replacement chars.
+    // Once v0 structured outputs are emitted for OOXML, propagate a warning when had_errors is true.
+    let _ = had_errors;
     Ok(match decoded {
         Cow::Borrowed(s) => s.to_string(),
         Cow::Owned(s) => s,
@@ -88,9 +91,13 @@ fn detect_encoding_and_bom(bytes: &[u8]) -> (&'static Encoding, usize) {
     }
 
     // Best-effort XML declaration sniffing.
+    // NOTE: In OOXML we primarily expect UTF-8 or UTF-16 with a BOM.
+    // To avoid mis-decoding on attacker-controlled `encoding=...` declarations,
+    // only honor UTF-8 declarations when no BOM is present.
     if let Some(label) = sniff_xml_decl_encoding(bytes) {
-        if let Some(enc) = Encoding::for_label(label.as_bytes()) {
-            return (enc, 0);
+        let norm = label.trim().to_ascii_lowercase();
+        if norm == "utf-8" || norm == "utf8" {
+            return (encoding_rs::UTF_8, 0);
         }
     }
 
@@ -107,17 +114,65 @@ fn sniff_xml_decl_encoding(bytes: &[u8]) -> Option<String> {
         return None;
     }
 
-    let idx = lower.find("encoding=")?;
-    let after = &s[idx + "encoding=".len()..];
-    let mut chars = after.chars();
+    let idx = lower.find("encoding")?;
+    let mut rest = &s[idx + "encoding".len()..];
+
+    rest = rest
+        .strip_prefix(|c: char| c.is_ascii_whitespace())
+        .unwrap_or(rest);
+    while let Some(r) = rest.strip_prefix(|c: char| c.is_ascii_whitespace()) {
+        rest = r;
+    }
+
+    rest = rest.strip_prefix('=')?;
+    while let Some(r) = rest.strip_prefix(|c: char| c.is_ascii_whitespace()) {
+        rest = r;
+    }
+
+    let mut chars = rest.chars();
     let quote = chars.next()?;
     if quote != '"' && quote != '\'' {
         return None;
     }
 
-    let rest = chars.as_str();
-    let end = rest.find(quote)?;
-    Some(rest[..end].trim().to_string())
+    let after_quote = chars.as_str();
+    let end = after_quote.find(quote)?;
+    Some(after_quote[..end].trim().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sniff_xml_decl_encoding_handles_whitespace() {
+        let s = b"<?xml version=\"1.0\" encoding = \"UTF-16\"?><x/>";
+        assert_eq!(sniff_xml_decl_encoding(s).as_deref(), Some("UTF-16"));
+
+        let s = b"<?xml version=\"1.0\"\n encoding=\"UTF-8\"?><x/>";
+        assert_eq!(sniff_xml_decl_encoding(s).as_deref(), Some("UTF-8"));
+    }
+
+    #[test]
+    fn detect_encoding_prefers_utf8_without_bom() {
+        let s = b"<?xml version=\"1.0\" encoding=\"UTF-16\"?><x/>";
+        let (enc, bom_len) = detect_encoding_and_bom(s);
+        assert_eq!(enc.name(), "UTF-8");
+        assert_eq!(bom_len, 0);
+
+        let s = b"<?xml version=\"1.0\" encoding=\"utf-8\"?><x/>";
+        let (enc, bom_len) = detect_encoding_and_bom(s);
+        assert_eq!(enc.name(), "UTF-8");
+        assert_eq!(bom_len, 0);
+    }
+
+    #[test]
+    fn decode_xml_bytes_honors_utf16_bom() {
+        // UTF-16LE BOM + "<a/>"
+        let bytes = [0xFF, 0xFE, b'<', 0x00, b'a', 0x00, b'/', 0x00, b'>', 0x00];
+        let out = decode_xml_bytes(&bytes).unwrap();
+        assert_eq!(out, "<a/>");
+    }
 }
 
 /// Resolve an XML entity reference to its string value.

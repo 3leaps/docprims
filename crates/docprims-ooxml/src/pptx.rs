@@ -130,11 +130,12 @@ fn resolve_ooxml_target(base_dir: &str, target: &str) -> String {
     let target = target.strip_prefix('/').unwrap_or(target);
 
     let mut parts: Vec<&str> = base_dir.split('/').filter(|s| !s.is_empty()).collect();
+    let min_len = parts.len();
     for seg in target.split('/') {
         match seg {
             "" | "." => {}
             ".." => {
-                if !parts.is_empty() {
+                if parts.len() > min_len {
                     parts.pop();
                 }
             }
@@ -266,5 +267,26 @@ mod tests {
         let p2 = resolve_ooxml_target("ppt", map.get("rId5").unwrap());
         assert_eq!(p1, "ppt/slides/slide1.xml");
         assert_eq!(p2, "ppt/slides/slide2.xml");
+    }
+
+    #[test]
+    fn test_resolve_ooxml_target_does_not_escape_base() {
+        let p = resolve_ooxml_target("ppt", "../slides/slide1.xml");
+        assert_eq!(p, "ppt/slides/slide1.xml");
+
+        let p = resolve_ooxml_target("ppt", "../../slides/slide1.xml");
+        assert_eq!(p, "ppt/slides/slide1.xml");
+
+        let p = resolve_ooxml_target("ppt", "/slides/slide1.xml");
+        assert_eq!(p, "ppt/slides/slide1.xml");
+
+        let p = resolve_ooxml_target("ppt", "./slides/slide1.xml");
+        assert_eq!(p, "ppt/slides/slide1.xml");
+
+        let p = resolve_ooxml_target("ppt", "slides//slide1.xml");
+        assert_eq!(p, "ppt/slides/slide1.xml");
+
+        let p = resolve_ooxml_target("ppt", "slides/../slides/slide1.xml");
+        assert_eq!(p, "ppt/slides/slide1.xml");
     }
 }

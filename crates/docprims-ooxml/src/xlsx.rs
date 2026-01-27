@@ -139,12 +139,13 @@ fn resolve_ooxml_target(base_dir: &str, target: &str) -> String {
     let target = target.strip_prefix('/').unwrap_or(target);
 
     let mut parts: Vec<&str> = base_dir.split('/').filter(|s| !s.is_empty()).collect();
+    let min_len = parts.len();
     for seg in target.split('/') {
         match seg {
             "" | "." => {}
             ".." => {
                 // Don't allow escaping the base dir.
-                if !parts.is_empty() {
+                if parts.len() > min_len {
                     parts.pop();
                 }
             }
@@ -367,5 +368,26 @@ mod tests {
         let p2 = resolve_ooxml_target("xl", map.get("rId2").unwrap());
         assert_eq!(p1, "xl/worksheets/sheet1.xml");
         assert_eq!(p2, "xl/worksheets/sheet2.xml");
+    }
+
+    #[test]
+    fn test_resolve_ooxml_target_does_not_escape_base() {
+        let p = resolve_ooxml_target("xl", "../worksheets/sheet1.xml");
+        assert_eq!(p, "xl/worksheets/sheet1.xml");
+
+        let p = resolve_ooxml_target("xl", "../../worksheets/sheet1.xml");
+        assert_eq!(p, "xl/worksheets/sheet1.xml");
+
+        let p = resolve_ooxml_target("xl", "/worksheets/sheet1.xml");
+        assert_eq!(p, "xl/worksheets/sheet1.xml");
+
+        let p = resolve_ooxml_target("xl", "./worksheets/sheet1.xml");
+        assert_eq!(p, "xl/worksheets/sheet1.xml");
+
+        let p = resolve_ooxml_target("xl", "worksheets//sheet1.xml");
+        assert_eq!(p, "xl/worksheets/sheet1.xml");
+
+        let p = resolve_ooxml_target("xl", "worksheets/../worksheets/sheet1.xml");
+        assert_eq!(p, "xl/worksheets/sheet1.xml");
     }
 }
