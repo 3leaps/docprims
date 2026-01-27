@@ -90,6 +90,23 @@ Follow the sysprims pattern:
 
 For local development, allow a `lib/local/<platform>/` override path.
 
+Musl selection:
+
+- glibc (default): no extra build tags
+- musl: `go test -tags musl ./...` (expects `lib/*-musl/`)
+
+### Binary Artifact Policy
+
+docprims follows the sysprims approach for Go:
+
+- The repo may vendor prebuilt static libraries under `bindings/go/docprims/lib/<platform>/`.
+- Local developer builds go to `bindings/go/docprims/lib/local/<platform>/` and should not be committed.
+
+If a platform is listed as supported for Go, we should either:
+
+- Vendor the corresponding `.a` library for that platform, or
+- Clearly document that the platform requires building the library locally.
+
 ## TypeScript Bindings
 
 TypeScript/Node should use a Node-API addon (napi-rs style), mirroring sysprims.
@@ -105,6 +122,11 @@ Implementation notes:
 - The addon should call into the C-ABI (docprims-ffi) rather than re-linking all Rust crates.
 - Avoid async callbacks in v0; extraction is synchronous by default.
 
+## Windows Notes
+
+- Go/cgo on Windows is expected to use a GNU toolchain (MinGW) and link against a `.a` (not a `.lib`).
+- Windows arm64 is currently out of scope for Go bindings due to toolchain constraints; prioritize CLI and TypeScript first.
+
 ## Platform Support Policy
 
 docprims tracks sysprims platform direction. For v0.1.x we target a staggered matrix:
@@ -112,6 +134,12 @@ docprims tracks sysprims platform direction. For v0.1.x we target a staggered ma
 - **macOS**: arm64 (drop darwin x64)
 - **Windows**: x64 and arm64
 - **Linux**: x64 and arm64
+
+Linux note (glibc vs musl): for Go (cgo), we support both glibc and musl variants by shipping
+separate prebuilt static libs under distinct platform directories (e.g. `linux-amd64` and
+`linux-amd64-musl`). Consumers select musl by building with `-tags musl` (mirrors sysprims).
+
+Linux note (glibc vs musl): Linux artifacts may be split by libc (e.g. `linux-amd64` and `linux-amd64-musl`). If we ship both, treat them as distinct targets in `bindings/go/docprims/lib/`.
 
 Go note (Windows arm64): Go/cgo on Windows requires a GNU toolchain (MinGW). MinGW does not currently support
 Windows arm64, so Go bindings are expected to support Windows x64 only. Windows arm64 support is targeted for
@@ -132,6 +160,14 @@ Bindings tests should focus on:
   - limit-triggered partial extraction
 
 Golden JSON equivalence is enforced in Rust. Bindings should validate key fields (`schema_id`, `schema_version`, `source.format.kind`) rather than pinning the entire payload.
+
+## CI Enforcement
+
+To keep bindings and headers from drifting:
+
+- Regenerate `ffi/docprims-ffi/docprims.h` via `cbindgen` in CI and fail if there is a diff.
+- Run `go test` using the binding package(s) and ensure the dynamic/static linker can locate the built library.
+- If vendoring `.a` libraries, add a CI job that links against the vendored libs (not just `lib/local`).
 
 ## Security Notes
 
