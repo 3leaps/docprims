@@ -77,7 +77,7 @@ pub fn extract_v0<R: Read + Seek>(
         let end = doc_text.len();
 
         let loc =
-            docprims_core::DocprimsLocation::archive("docx:paragraph", source_uri, DOCUMENT_PATH)
+            docprims_core::DocprimsLocation::archive("docx:locator", source_uri, DOCUMENT_PATH)
                 .with_hint_u64("block_index", block_index as u64)
                 .with_hint_u64("paragraph_index", p_idx as u64);
 

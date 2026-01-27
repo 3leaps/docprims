@@ -127,7 +127,7 @@ pub fn extract_v0<R: Read + Seek>(
             let end = doc_text.len();
 
             let mut loc =
-                docprims_core::DocprimsLocation::archive("xlsx:row", source_uri, &sheet_path)
+                docprims_core::DocprimsLocation::archive("xlsx:locator", source_uri, &sheet_path)
                     .with_hint_u64("block_index", block_index as u64)
                     .with_hint_u64("sheet_index", sheet_index as u64)
                     .with_hint_str("sheet_name", sheet_name.clone());

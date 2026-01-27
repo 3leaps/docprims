@@ -95,7 +95,7 @@ pub fn extract_v0<R: Read + Seek>(
             let end = doc_text.len();
 
             let loc =
-                docprims_core::DocprimsLocation::archive("pptx:paragraph", source_uri, slide_path)
+                docprims_core::DocprimsLocation::archive("pptx:locator", source_uri, slide_path)
                     .with_hint_u64("block_index", block_index as u64)
                     .with_hint_u64("slide_index", (slide_idx0 + 1) as u64)
                     .with_hint_u64("paragraph_index", p_idx as u64);

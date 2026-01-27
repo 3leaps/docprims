@@ -29,7 +29,7 @@ docprims is a Rust library (with CLI + FFI bindings) that extracts text from doc
 | Principle | Rationale | Reference |
 |-----------|-----------|-----------|
 | Defensive parsing | Untrusted input is the norm | ADR-0003 |
-| Schema-driven contracts | Consumers need stability guarantees | `.plans/active/v0.1.0/01-*.md` |
+| Schema-driven contracts | Consumers need stability guarantees | `schemas/v0/extract/` |
 | Minimal core dependencies | Keep docprims-core embeddable | ADR-0002 |
 | CLI composability | Stdout purity for pipelines | ADR-0004 |
 | GPL-free license policy | Safe for commercial embedding | ADR-0001 |
@@ -193,11 +193,15 @@ Blocks are the primary unit for consumer scanning, context windows, and provenan
 | text | `markdown:paragraph` | Markdown paragraph |
 | text | `markdown:list_item` | Markdown list item |
 | text | `markdown:code` | Markdown code block |
-| text | `html:block` | HTML block (generic) |
+| text | `html:heading` | HTML heading (`h1..h6`) |
+| text | `html:paragraph` | HTML paragraph (`p`) |
+| text | `html:list_item` | HTML list item (`li`) |
+| text | `html:code` | HTML code/preformatted (`pre`) |
+| text | `html:blockquote` | HTML blockquote (`blockquote`) |
 | text | `xml:text` | XML logical text block |
 | ooxml | `docx:paragraph` | Word paragraph |
-| ooxml | `xlsx:cell` | Spreadsheet cell |
-| ooxml | `pptx:shape_text` | Slide shape text |
+| ooxml | `xlsx:row` | Spreadsheet row (tab-joined cells) |
+| ooxml | `pptx:paragraph` | Slide paragraph text |
 
 Block kinds are namespaced (`family:name`) to allow extensibility.
 
@@ -233,8 +237,8 @@ Every block includes a locator (`loc`) that answers: "where did this text come f
 | HTML | `html:locator` | `hints.dom_path` (recommended) or `hints.block_index` |
 | XML | `xml:locator` | `hints.element_path` (recommended) or `hints.block_index` |
 | DOCX | `docx:locator` | `paragraph_index`, `table_index`, `row_index`, `col_index` |
-| XLSX | `xlsx:locator` | `sheet_name`, `cell_ref` (e.g., "B12") |
-| PPTX | `pptx:locator` | `slide_number`, `shape_id` |
+| XLSX | `xlsx:locator` | `sheet_name`, `sheet_index`, `row_index` (v0 uses row blocks) |
+| PPTX | `pptx:locator` | `slide_index`, `paragraph_index` (v0 uses paragraph blocks) |
 
 ### Container Types
 
@@ -541,16 +545,4 @@ Minimal: `serde`, `thiserror`, `time`. No format-specific dependencies.
 - `docs/decisions/ADR-0003-input-validation-policy.md` - Security posture
 - `docs/decisions/ADR-0004-stdout-purity.md` - CLI composability
 
-### Planning Documents
-
-- `.plans/active/v0.1.0/01-structured-blocks-and-spans.md` - Block/span model
-- `.plans/active/v0.1.0/02-json-schema-layout-and-versioning.md` - Schema versioning
-- `.plans/active/v0.1.0/03-cli-and-ffi-json-output-contract.md` - Output contracts
-- `.plans/active/v0.1.0/04-provenance-location-models-per-format.md` - Location anchors
-- `.plans/active/v0.1.0/05-extraction-limits-and-resource-controls.md` - Resource limits
-- `.plans/active/v0.1.0/06-structured-fixtures-and-golden-tests.md` - Testing strategy
-
-### External
-
-- `.plans/bootstrap/gentry-vision.md` - Primary consumer context
-- `.plans/bootstrap/docprims-ooxml-brief.md` - OOXML implementation details
+For canonical vs out-of-band planning references, see `docs/orientation/sources-of-truth.md`.
