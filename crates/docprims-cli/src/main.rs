@@ -299,6 +299,96 @@ fn output_result(path: &std::path::Path, text: &ExtractedText, args: &ExtractArg
                             );
                         }
                     }
+                } else if ext == "docx" {
+                    let limits = ExtractLimits {
+                        max_input_bytes: args.max_input_bytes,
+                        ..ExtractLimits::default()
+                    };
+
+                    match docprims_ooxml::extract_docx_v0(path, limits) {
+                        Ok(extract) => {
+                            let json = if args.json_array {
+                                serde_json::to_string_pretty(&extract).unwrap_or_else(|e| {
+                                    eprintln!("Error serializing JSON: {e}");
+                                    "{}".to_string()
+                                })
+                            } else {
+                                serde_json::to_string(&extract).unwrap_or_else(|e| {
+                                    eprintln!("Error serializing JSON: {e}");
+                                    "{}".to_string()
+                                })
+                            };
+                            println!("{json}");
+                            return;
+                        }
+                        Err(e) => {
+                            eprintln!(
+                                "Error extracting structured blocks for {}: {}",
+                                path.display(),
+                                e
+                            );
+                        }
+                    }
+                } else if ext == "xlsx" {
+                    let limits = ExtractLimits {
+                        max_input_bytes: args.max_input_bytes,
+                        ..ExtractLimits::default()
+                    };
+
+                    match docprims_ooxml::extract_xlsx_v0(path, limits) {
+                        Ok(extract) => {
+                            let json = if args.json_array {
+                                serde_json::to_string_pretty(&extract).unwrap_or_else(|e| {
+                                    eprintln!("Error serializing JSON: {e}");
+                                    "{}".to_string()
+                                })
+                            } else {
+                                serde_json::to_string(&extract).unwrap_or_else(|e| {
+                                    eprintln!("Error serializing JSON: {e}");
+                                    "{}".to_string()
+                                })
+                            };
+                            println!("{json}");
+                            return;
+                        }
+                        Err(e) => {
+                            eprintln!(
+                                "Error extracting structured blocks for {}: {}",
+                                path.display(),
+                                e
+                            );
+                        }
+                    }
+                } else if ext == "pptx" {
+                    let limits = ExtractLimits {
+                        max_input_bytes: args.max_input_bytes,
+                        ..ExtractLimits::default()
+                    };
+
+                    match docprims_ooxml::extract_pptx_v0(path, limits) {
+                        Ok(extract) => {
+                            let json = if args.json_array {
+                                serde_json::to_string_pretty(&extract).unwrap_or_else(|e| {
+                                    eprintln!("Error serializing JSON: {e}");
+                                    "{}".to_string()
+                                })
+                            } else {
+                                serde_json::to_string(&extract).unwrap_or_else(|e| {
+                                    eprintln!("Error serializing JSON: {e}");
+                                    "{}".to_string()
+                                })
+                            };
+                            println!("{json}");
+                            return;
+                        }
+                        Err(e) => {
+                            eprintln!(
+                                "Error extracting structured blocks for {}: {}",
+                                path.display(),
+                                e
+                            );
+                        }
+                    }
                 } else if ext == "html" || ext == "htm" {
                     let limits = ExtractLimits {
                         max_input_bytes: args.max_input_bytes,

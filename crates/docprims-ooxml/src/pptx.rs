@@ -1,7 +1,10 @@
 //! PPTX (PowerPoint) text extraction.
 
 use crate::common::{open_archive, read_archive_file, resolve_entity};
-use docprims_core::{DocprimsError, ExtractedText, Result};
+use docprims_core::{
+    DocprimsBlock, DocprimsByteRange, DocprimsDocument, DocprimsError, DocprimsExtract,
+    DocprimsGenerator, DocprimsQuality, DocprimsSource, ExtractLimits, ExtractedText, Result,
+};
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 use std::collections::HashMap;
@@ -31,6 +34,126 @@ pub fn extract<R: Read + Seek>(reader: R) -> Result<ExtractedText> {
     }
 
     Ok(ExtractedText::complete(all_text.trim().to_string()))
+}
+
+/// Extract structured output (v0 contract) from a PPTX reader.
+pub fn extract_v0<R: Read + Seek>(
+    reader: R,
+    source_uri: &str,
+    limits: ExtractLimits,
+) -> Result<DocprimsExtract> {
+    let mut archive = open_archive(reader)?;
+    let slide_paths = enumerate_slides(&mut archive)?;
+
+    let mut warnings = Vec::new();
+    let mut quality = DocprimsQuality::complete();
+    let mut blocks = Vec::new();
+    let mut doc_text = String::new();
+
+    let mut hit_max_blocks = false;
+    let mut truncated_output = false;
+    let mut block_index = 0usize;
+
+    for (slide_idx0, slide_path) in slide_paths.iter().enumerate() {
+        if block_index >= limits.max_blocks {
+            hit_max_blocks = true;
+            break;
+        }
+
+        let Some(xml) = read_archive_file(&mut archive, slide_path)? else {
+            continue;
+        };
+
+        let paras = extract_slide_paragraphs(&xml)?;
+        for (p_idx, p) in paras.into_iter().enumerate() {
+            if p.is_empty() {
+                continue;
+            }
+
+            if block_index >= limits.max_blocks {
+                hit_max_blocks = true;
+                break;
+            }
+
+            if block_index > 0 {
+                if doc_text.len() + 1 > limits.max_output_bytes {
+                    truncated_output = true;
+                    break;
+                }
+                doc_text.push('\n');
+            }
+
+            let start = doc_text.len();
+            let remaining = limits.max_output_bytes.saturating_sub(doc_text.len());
+            let text = if p.len() > remaining {
+                truncated_output = true;
+                docprims_core::truncate_to_utf8_boundary(&p, remaining).to_string()
+            } else {
+                p
+            };
+            doc_text.push_str(&text);
+            let end = doc_text.len();
+
+            let loc =
+                docprims_core::DocprimsLocation::archive("pptx:paragraph", source_uri, slide_path)
+                    .with_hint_u64("block_index", block_index as u64)
+                    .with_hint_u64("slide_index", (slide_idx0 + 1) as u64)
+                    .with_hint_u64("paragraph_index", p_idx as u64);
+
+            blocks.push(DocprimsBlock {
+                id: format!("pptx:paragraph:{}", block_index),
+                kind: "pptx:paragraph".to_string(),
+                text,
+                doc_text_range: DocprimsByteRange {
+                    start_byte: start,
+                    end_byte: end,
+                },
+                loc,
+                children: vec![],
+                role: None,
+            });
+
+            block_index += 1;
+            if truncated_output {
+                break;
+            }
+        }
+
+        if hit_max_blocks || truncated_output {
+            break;
+        }
+    }
+
+    if hit_max_blocks {
+        quality = DocprimsQuality::partial(docprims_core::DOCPRIMS_V0_PARTIAL_MAX_BLOCKS);
+        warnings.push(docprims_core::DOCPRIMS_V0_WARN_TRUNCATED_MAX_BLOCKS.to_string());
+    }
+    if truncated_output {
+        quality = DocprimsQuality::partial(docprims_core::DOCPRIMS_V0_PARTIAL_MAX_OUTPUT_BYTES);
+        warnings.push(docprims_core::DOCPRIMS_V0_WARN_TRUNCATED_MAX_OUTPUT_BYTES.to_string());
+    }
+
+    Ok(DocprimsExtract::v0(
+        DocprimsGenerator {
+            name: "docprims".to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
+        },
+        DocprimsSource {
+            uri: source_uri.to_string(),
+            format: docprims_core::DocprimsFormat {
+                family: "ooxml".to_string(),
+                kind: "pptx".to_string(),
+            },
+            sha256: None,
+        },
+        DocprimsDocument {
+            quality,
+            text: doc_text,
+            blocks,
+            warnings,
+            metadata: None,
+        },
+    ))
 }
 
 fn enumerate_slides<R: Read + Seek>(archive: &mut zip::ZipArchive<R>) -> Result<Vec<String>> {
@@ -208,9 +331,71 @@ fn extract_slide_text(xml: &str) -> Result<String> {
     Ok(text_parts.join("\n"))
 }
 
+fn extract_slide_paragraphs(xml: &str) -> Result<Vec<String>> {
+    let mut reader = Reader::from_str(xml);
+    // Don't use trim_text - it drops entity references in quick-xml 0.39
+
+    let mut paras: Vec<String> = Vec::new();
+    let mut current = String::new();
+    let mut buf = Vec::new();
+
+    loop {
+        match reader.read_event_into(&mut buf) {
+            Ok(Event::Start(e)) => {
+                if e.local_name().as_ref() == b"p" {
+                    let trimmed = current.trim();
+                    if !trimmed.is_empty() {
+                        paras.push(trimmed.to_string());
+                    }
+                    current.clear();
+                }
+            }
+            Ok(Event::End(e)) => {
+                if e.local_name().as_ref() == b"p" {
+                    let trimmed = current.trim();
+                    if !trimmed.is_empty() {
+                        paras.push(trimmed.to_string());
+                    }
+                    current.clear();
+                }
+            }
+            Ok(Event::Text(e)) => {
+                let decoded = e
+                    .decode()
+                    .map_err(|e| DocprimsError::Parse(format!("XML decode error: {}", e)))?;
+                current.push_str(&decoded);
+            }
+            Ok(Event::GeneralRef(e)) => {
+                if let Some(resolved) = resolve_entity(&e) {
+                    current.push_str(resolved);
+                }
+            }
+            Ok(Event::Eof) => {
+                let trimmed = current.trim();
+                if !trimmed.is_empty() {
+                    paras.push(trimmed.to_string());
+                }
+                break;
+            }
+            Err(e) => {
+                return Err(DocprimsError::Parse(format!(
+                    "Slide parse error at {}: {}",
+                    reader.buffer_position(),
+                    e
+                )));
+            }
+            _ => {}
+        }
+        buf.clear();
+    }
+
+    Ok(paras)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Cursor;
 
     #[test]
     fn test_extract_slide_text() {
@@ -288,5 +473,66 @@ mod tests {
 
         let p = resolve_ooxml_target("ppt", "slides/../slides/slide1.xml");
         assert_eq!(p, "ppt/slides/slide1.xml");
+    }
+
+    #[test]
+    fn v0_extracts_paragraphs_with_slide_hints_and_validates_schema() {
+        let pres = r#"<?xml version="1.0" encoding="UTF-8"?>
+<p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
+                xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <p:sldIdLst>
+    <p:sldId id="256" r:id="rId2"/>
+  </p:sldIdLst>
+</p:presentation>"#;
+
+        let rels = r#"<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2" Target="slides/slide1.xml"/>
+</Relationships>"#;
+
+        let slide = r#"<?xml version="1.0" encoding="UTF-8"?>
+<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+       xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+  <p:cSld>
+    <p:spTree>
+      <p:sp>
+        <p:txBody>
+          <a:p><a:r><a:t>Title</a:t></a:r></a:p>
+          <a:p><a:r><a:t>Bullet</a:t></a:r></a:p>
+        </p:txBody>
+      </p:sp>
+    </p:spTree>
+  </p:cSld>
+</p:sld>"#;
+
+        let zip = crate::test_support::build_zip(vec![
+            ("ppt/presentation.xml", pres.as_bytes().to_vec()),
+            ("ppt/_rels/presentation.xml.rels", rels.as_bytes().to_vec()),
+            ("ppt/slides/slide1.xml", slide.as_bytes().to_vec()),
+        ]);
+
+        let out = extract_v0(
+            Cursor::new(zip.into_inner()),
+            "./x.pptx",
+            ExtractLimits {
+                max_input_bytes: 1024 * 1024,
+                max_output_bytes: 1024 * 1024,
+                max_blocks: 100,
+            },
+        )
+        .unwrap();
+
+        assert!(out.document.text.contains("Title"));
+        assert!(out.document.text.contains("Bullet"));
+        assert_eq!(out.document.blocks[0].kind, "pptx:paragraph");
+        assert_eq!(
+            out.document.blocks[0]
+                .loc
+                .hints
+                .get("slide_index")
+                .and_then(|v| v.as_u64()),
+            Some(1)
+        );
+        crate::test_support::assert_v0_schema_valid(&out);
     }
 }

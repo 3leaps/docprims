@@ -19,3 +19,7 @@ docprims-core = { workspace = true }
 quick-xml = { workspace = true }
 zip = { workspace = true }
 encoding_rs = { workspace = true }
+
+[dev-dependencies]
+jsonschema = "0.32"
+serde_json = { workspace = true }
