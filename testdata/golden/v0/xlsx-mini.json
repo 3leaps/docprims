@@ -1,0 +1,46 @@
+{
+  "schema_id": "https://schemas.3leaps.dev/docprims/extract/v0/docprims-extract.schema.json",
+  "schema_version": "1.0.0",
+  "generator": {
+    "name": "docprims",
+    "version": "0.1.0"
+  },
+  "source": {
+    "uri": "testdata/fixtures/ooxml/mini.xlsx",
+    "format": {
+      "family": "ooxml",
+      "kind": "xlsx"
+    }
+  },
+  "document": {
+    "quality": {
+      "status": "complete"
+    },
+    "text": "Apple\t42",
+    "blocks": [
+      {
+        "id": "xlsx:row:0",
+        "kind": "xlsx:row",
+        "text": "Apple\t42",
+        "doc_text_range": {
+          "start_byte": 0,
+          "end_byte": 8
+        },
+        "loc": {
+          "kind": "xlsx:locator",
+          "container": {
+            "kind": "archive",
+            "path": "testdata/fixtures/ooxml/mini.xlsx",
+            "part": "xl/worksheets/sheet1.xml"
+          },
+          "hints": {
+            "block_index": 0,
+            "sheet_index": 0,
+            "sheet_name": "Sheet1",
+            "row_index": 1
+          }
+        }
+      }
+    ]
+  }
+}

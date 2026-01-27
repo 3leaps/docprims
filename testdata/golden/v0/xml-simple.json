@@ -1,0 +1,61 @@
+{
+  "schema_id": "https://schemas.3leaps.dev/docprims/extract/v0/docprims-extract.schema.json",
+  "schema_version": "1.0.0",
+  "generator": {
+    "name": "docprims",
+    "version": "0.1.0"
+  },
+  "source": {
+    "uri": "testdata/fixtures/text/simple.xml",
+    "format": {
+      "family": "text",
+      "kind": "xml"
+    }
+  },
+  "document": {
+    "quality": {
+      "status": "complete"
+    },
+    "text": "Hello World",
+    "blocks": [
+      {
+        "id": "xml:text:0",
+        "kind": "xml:text",
+        "text": "Hello",
+        "doc_text_range": {
+          "start_byte": 0,
+          "end_byte": 5
+        },
+        "loc": {
+          "kind": "xml:locator",
+          "container": {
+            "kind": "file",
+            "path": "testdata/fixtures/text/simple.xml"
+          },
+          "hints": {
+            "block_index": 0
+          }
+        }
+      },
+      {
+        "id": "xml:text:1",
+        "kind": "xml:text",
+        "text": "World",
+        "doc_text_range": {
+          "start_byte": 6,
+          "end_byte": 11
+        },
+        "loc": {
+          "kind": "xml:locator",
+          "container": {
+            "kind": "file",
+            "path": "testdata/fixtures/text/simple.xml"
+          },
+          "hints": {
+            "block_index": 1
+          }
+        }
+      }
+    ]
+  }
+}

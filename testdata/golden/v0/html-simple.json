@@ -1,0 +1,64 @@
+{
+  "schema_id": "https://schemas.3leaps.dev/docprims/extract/v0/docprims-extract.schema.json",
+  "schema_version": "1.0.0",
+  "generator": {
+    "name": "docprims",
+    "version": "0.1.0"
+  },
+  "source": {
+    "uri": "testdata/fixtures/text/simple.html",
+    "format": {
+      "family": "text",
+      "kind": "html"
+    }
+  },
+  "document": {
+    "quality": {
+      "status": "complete"
+    },
+    "text": "Hi\nThere",
+    "blocks": [
+      {
+        "id": "html:heading:0",
+        "kind": "html:heading",
+        "text": "Hi",
+        "doc_text_range": {
+          "start_byte": 0,
+          "end_byte": 2
+        },
+        "loc": {
+          "kind": "html:locator",
+          "container": {
+            "kind": "file",
+            "path": "testdata/fixtures/text/simple.html"
+          },
+          "hints": {
+            "block_index": 0,
+            "tag": "h1",
+            "level": 1
+          }
+        }
+      },
+      {
+        "id": "html:paragraph:1",
+        "kind": "html:paragraph",
+        "text": "There",
+        "doc_text_range": {
+          "start_byte": 3,
+          "end_byte": 8
+        },
+        "loc": {
+          "kind": "html:locator",
+          "container": {
+            "kind": "file",
+            "path": "testdata/fixtures/text/simple.html"
+          },
+          "hints": {
+            "block_index": 1,
+            "tag": "p"
+          }
+        }
+      }
+    ]
+  }
+}

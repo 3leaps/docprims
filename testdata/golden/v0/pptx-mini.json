@@ -1,0 +1,67 @@
+{
+  "schema_id": "https://schemas.3leaps.dev/docprims/extract/v0/docprims-extract.schema.json",
+  "schema_version": "1.0.0",
+  "generator": {
+    "name": "docprims",
+    "version": "0.1.0"
+  },
+  "source": {
+    "uri": "testdata/fixtures/ooxml/mini.pptx",
+    "format": {
+      "family": "ooxml",
+      "kind": "pptx"
+    }
+  },
+  "document": {
+    "quality": {
+      "status": "complete"
+    },
+    "text": "Title\nBullet",
+    "blocks": [
+      {
+        "id": "pptx:paragraph:0",
+        "kind": "pptx:paragraph",
+        "text": "Title",
+        "doc_text_range": {
+          "start_byte": 0,
+          "end_byte": 5
+        },
+        "loc": {
+          "kind": "pptx:locator",
+          "container": {
+            "kind": "archive",
+            "path": "testdata/fixtures/ooxml/mini.pptx",
+            "part": "ppt/slides/slide1.xml"
+          },
+          "hints": {
+            "block_index": 0,
+            "slide_index": 1,
+            "paragraph_index": 0
+          }
+        }
+      },
+      {
+        "id": "pptx:paragraph:1",
+        "kind": "pptx:paragraph",
+        "text": "Bullet",
+        "doc_text_range": {
+          "start_byte": 6,
+          "end_byte": 12
+        },
+        "loc": {
+          "kind": "pptx:locator",
+          "container": {
+            "kind": "archive",
+            "path": "testdata/fixtures/ooxml/mini.pptx",
+            "part": "ppt/slides/slide1.xml"
+          },
+          "hints": {
+            "block_index": 1,
+            "slide_index": 1,
+            "paragraph_index": 1
+          }
+        }
+      }
+    ]
+  }
+}

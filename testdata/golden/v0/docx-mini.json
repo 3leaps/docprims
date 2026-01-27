@@ -1,0 +1,65 @@
+{
+  "schema_id": "https://schemas.3leaps.dev/docprims/extract/v0/docprims-extract.schema.json",
+  "schema_version": "1.0.0",
+  "generator": {
+    "name": "docprims",
+    "version": "0.1.0"
+  },
+  "source": {
+    "uri": "testdata/fixtures/ooxml/mini.docx",
+    "format": {
+      "family": "ooxml",
+      "kind": "docx"
+    }
+  },
+  "document": {
+    "quality": {
+      "status": "complete"
+    },
+    "text": "Hello\nWorld",
+    "blocks": [
+      {
+        "id": "docx:paragraph:0",
+        "kind": "docx:paragraph",
+        "text": "Hello",
+        "doc_text_range": {
+          "start_byte": 0,
+          "end_byte": 5
+        },
+        "loc": {
+          "kind": "docx:locator",
+          "container": {
+            "kind": "archive",
+            "path": "testdata/fixtures/ooxml/mini.docx",
+            "part": "word/document.xml"
+          },
+          "hints": {
+            "block_index": 0,
+            "paragraph_index": 0
+          }
+        }
+      },
+      {
+        "id": "docx:paragraph:1",
+        "kind": "docx:paragraph",
+        "text": "World",
+        "doc_text_range": {
+          "start_byte": 6,
+          "end_byte": 11
+        },
+        "loc": {
+          "kind": "docx:locator",
+          "container": {
+            "kind": "archive",
+            "path": "testdata/fixtures/ooxml/mini.docx",
+            "part": "word/document.xml"
+          },
+          "hints": {
+            "block_index": 1,
+            "paragraph_index": 1
+          }
+        }
+      }
+    ]
+  }
+}

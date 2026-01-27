@@ -1,0 +1,61 @@
+{
+  "schema_id": "https://schemas.3leaps.dev/docprims/extract/v0/docprims-extract.schema.json",
+  "schema_version": "1.0.0",
+  "generator": {
+    "name": "docprims",
+    "version": "0.1.0"
+  },
+  "source": {
+    "uri": "testdata/fixtures/text/simple.md",
+    "format": {
+      "family": "text",
+      "kind": "markdown"
+    }
+  },
+  "document": {
+    "quality": {
+      "status": "complete"
+    },
+    "text": "H\npara",
+    "blocks": [
+      {
+        "id": "markdown:heading:0",
+        "kind": "markdown:heading",
+        "text": "H",
+        "doc_text_range": {
+          "start_byte": 0,
+          "end_byte": 1
+        },
+        "loc": {
+          "kind": "markdown:locator",
+          "container": {
+            "kind": "file",
+            "path": "testdata/fixtures/text/simple.md"
+          },
+          "hints": {
+            "block_index": 0
+          }
+        }
+      },
+      {
+        "id": "markdown:paragraph:1",
+        "kind": "markdown:paragraph",
+        "text": "para",
+        "doc_text_range": {
+          "start_byte": 2,
+          "end_byte": 6
+        },
+        "loc": {
+          "kind": "markdown:locator",
+          "container": {
+            "kind": "file",
+            "path": "testdata/fixtures/text/simple.md"
+          },
+          "hints": {
+            "block_index": 1
+          }
+        }
+      }
+    ]
+  }
+}
