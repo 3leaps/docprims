@@ -139,8 +139,6 @@ Linux note (glibc vs musl): for Go (cgo), we support both glibc and musl variant
 separate prebuilt static libs under distinct platform directories (e.g. `linux-amd64` and
 `linux-amd64-musl`). Consumers select musl by building with `-tags musl` (mirrors sysprims).
 
-Linux note (glibc vs musl): Linux artifacts may be split by libc (e.g. `linux-amd64` and `linux-amd64-musl`). If we ship both, treat them as distinct targets in `bindings/go/docprims/lib/`.
-
 Go note (Windows arm64): Go/cgo on Windows requires a GNU toolchain (MinGW). MinGW does not currently support
 Windows arm64, so Go bindings are expected to support Windows x64 only. Windows arm64 support is targeted for
 CLI and TypeScript first; Go may follow later via llvm-mingw or a different distribution strategy.
