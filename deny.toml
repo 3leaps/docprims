@@ -10,25 +10,22 @@ ignore = []
 
 [licenses]
 # All licenses are denied unless explicitly allowed
+# Run `cargo deny list` to see what's actually used
 allow = [
     "MIT",
     "Apache-2.0",
-    "Apache-2.0 WITH LLVM-exception",
-    "BSD-2-Clause",
     "BSD-3-Clause",
     "ISC",
     "Zlib",
     "Unicode-3.0",
-    "Unicode-DFS-2016",
-    "CC0-1.0",
-    "MPL-2.0",  # Weak copyleft, acceptable for linking
+    "MPL-2.0",     # Weak copyleft, acceptable for linking
+    "BSL-1.0",     # Boost Software License (ryu)
+    "Unlicense",   # Public domain dedication (aho-corasick, memchr)
 ]
 confidence-threshold = 0.8
 
-[[licenses.clarify]]
-name = "encoding_rs"
-expression = "(Apache-2.0 OR MIT) AND BSD-3-Clause"
-license-files = [{ path = "LICENSE", hash = 0x001c7e6c }]
+# Note: encoding_rs is (Apache-2.0 OR MIT) AND BSD-3-Clause
+# All three licenses are in our allow list, so no clarification needed.
 
 [bans]
 multiple-versions = "warn"
