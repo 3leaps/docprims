@@ -61,6 +61,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Verify cargo-zigbuild is available
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v cargo-zigbuild >/dev/null 2>&1; then
+            echo "ERROR: cargo-zigbuild not found in container image" >&2
+            echo "Fix: update the runner image or install cargo-zigbuild in this job." >&2
+            exit 1
+          fi
+          cargo zigbuild --version
+
       - name: Build FFI
         shell: bash
         run: |
