@@ -11,6 +11,9 @@
 .PHONY: all help bootstrap bootstrap-force tools check test fmt lint build clean version install
 .PHONY: precommit prepush deps-check audit deny miri msrv fmt-check
 .PHONY: build-release build-ffi cbindgen
+.PHONY: release-clean release-download release-checksums release-sign
+.PHONY: release-export-keys release-verify-checksums release-verify-signatures
+.PHONY: release-verify-keys release-notes release-upload release
 .PHONY: build-local-go go-test
 .PHONY: version-patch version-minor version-major version-set version-sync
 .PHONY: check-windows check-windows-msvc check-windows-gnu
@@ -58,6 +61,15 @@ help: ## Show available targets
 	@echo "Go bindings:"
 	@echo "  build-local-go  Build FFI for local Go development"
 	@echo "  go-test         Run Go binding tests"
+	@echo ""
+	@echo "Release (manual signing):"
+	@echo "  release-clean       Remove dist/release contents"
+	@echo "  release-download    Download draft release assets"
+	@echo "  release-checksums   Generate SHA256SUMS and SHA512SUMS"
+	@echo "  release-sign        Sign checksum manifests (minisign/optional PGP)"
+	@echo "  release-export-keys Export public signing keys"
+	@echo "  release-verify      Verify checksums/signatures/keys"
+	@echo "  release-upload      Upload signed assets and publish"
 	@echo ""
 	@echo "Quality gates:"
 	@echo "  check           Run all quality checks (fmt, lint, test, deny)"
@@ -404,6 +416,93 @@ precommit: fmt-check lint ## Run pre-commit checks (fast)
 
 prepush: check ## Run pre-push checks (thorough)
 	@echo "[ok] Pre-push checks passed"
+
+# -----------------------------------------------------------------------------
+# Release Workflow
+# -----------------------------------------------------------------------------
+#
+# Manual signing workflow (CI builds unsigned, maintainer signs locally):
+#
+# 1. CI creates draft release on tag push (release workflow)
+# 2. Download artifacts: make release-download
+# 3. Generate checksums: make release-checksums
+# 4. Sign checksums: make release-sign (requires DOCPRIMS_MINISIGN_KEY)
+# 5. Export public keys: make release-export-keys
+# 6. Verify everything: make release-verify
+# 7. Upload signed artifacts: make release-upload
+
+DIST_RELEASE := dist/release
+DOCPRIMS_RELEASE_TAG ?= $(shell git describe --tags --abbrev=0 2>/dev/null || echo v$(shell cat VERSION))
+
+# Signing keys (set these environment variables)
+DOCPRIMS_MINISIGN_KEY ?=
+DOCPRIMS_MINISIGN_PUB ?=
+DOCPRIMS_PGP_KEY_ID ?=
+DOCPRIMS_GPG_HOMEDIR ?=
+
+release-clean: ## Remove dist/release contents
+	@echo "Cleaning release directory..."
+	rm -rf $(DIST_RELEASE)
+	@echo "[ok] Release directory cleaned"
+
+release-download: ## Download release assets from GitHub
+	@if [ -z "$(DOCPRIMS_RELEASE_TAG)" ] || [ "$(DOCPRIMS_RELEASE_TAG)" = "v" ]; then \
+		echo "Error: No release tag found. Set DOCPRIMS_RELEASE_TAG=vX.Y.Z"; \
+		exit 1; \
+	fi
+	./scripts/download-release-assets.sh $(DOCPRIMS_RELEASE_TAG) $(DIST_RELEASE)
+
+release-checksums: ## Generate SHA256SUMS and SHA512SUMS
+	./scripts/generate-checksums.sh $(DIST_RELEASE)
+
+release-sign: ## Sign checksum manifests (requires DOCPRIMS_MINISIGN_KEY)
+	@if [ -z "$(DOCPRIMS_MINISIGN_KEY)" ]; then \
+		echo "Error: DOCPRIMS_MINISIGN_KEY not set"; \
+		echo ""; \
+		echo "Set the path to your minisign secret key:"; \
+		echo "  export DOCPRIMS_MINISIGN_KEY=/path/to/docprims.key"; \
+		exit 1; \
+	fi
+	DOCPRIMS_MINISIGN_KEY=$(DOCPRIMS_MINISIGN_KEY) \
+	DOCPRIMS_PGP_KEY_ID=$(DOCPRIMS_PGP_KEY_ID) \
+	DOCPRIMS_GPG_HOMEDIR=$(DOCPRIMS_GPG_HOMEDIR) \
+	./scripts/sign-release-assets.sh $(DOCPRIMS_RELEASE_TAG) $(DIST_RELEASE)
+
+release-export-keys: ## Export public signing keys
+	DOCPRIMS_MINISIGN_KEY=$(DOCPRIMS_MINISIGN_KEY) \
+	DOCPRIMS_MINISIGN_PUB=$(DOCPRIMS_MINISIGN_PUB) \
+	DOCPRIMS_PGP_KEY_ID=$(DOCPRIMS_PGP_KEY_ID) \
+	DOCPRIMS_GPG_HOMEDIR=$(DOCPRIMS_GPG_HOMEDIR) \
+	./scripts/export-release-keys.sh $(DIST_RELEASE)
+
+release-verify-checksums: ## Verify checksums match artifacts
+	@echo "Verifying checksums..."
+	cd $(DIST_RELEASE) && shasum -a 256 -c SHA256SUMS
+	@echo "[ok] Checksums verified"
+
+release-verify-signatures: ## Verify minisign/PGP signatures
+	./scripts/verify-signatures.sh $(DIST_RELEASE)
+
+release-verify-keys: ## Verify exported keys are public-only
+	./scripts/verify-public-keys.sh $(DIST_RELEASE)
+
+release-verify: release-verify-checksums release-verify-signatures release-verify-keys ## Run all release verification
+	@echo "[ok] All release verifications passed"
+
+release-notes: ## Copy release notes to dist
+	@src="docs/releases/$(DOCPRIMS_RELEASE_TAG).md"; \
+	if [ -f "$$src" ]; then \
+		cp "$$src" "$(DIST_RELEASE)/release-notes-$(DOCPRIMS_RELEASE_TAG).md"; \
+		echo "[ok] Copied release notes"; \
+	else \
+		echo "[--] No release notes found at $$src"; \
+	fi
+
+release-upload: release-verify release-notes ## Upload signed artifacts to GitHub release
+	./scripts/upload-release-assets.sh $(DOCPRIMS_RELEASE_TAG) $(DIST_RELEASE)
+
+release: release-clean release-download release-checksums release-sign release-export-keys release-upload ## Full release workflow (after CI build)
+	@echo "[ok] Release $(DOCPRIMS_RELEASE_TAG) complete"
 
 # -----------------------------------------------------------------------------
 # Version Management
