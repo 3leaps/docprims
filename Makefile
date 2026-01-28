@@ -245,12 +245,15 @@ lint: ## Run linting (goneat assess or cargo clippy)
 deny: ## Run cargo-deny license and advisory checks
 	@echo "Running cargo-deny..."
 	@if command -v cargo-deny >/dev/null 2>&1; then \
-		cargo-deny check; \
+		cargo-deny check bans licenses sources; \
 	else \
 		echo "[!!] cargo-deny not found (run 'make bootstrap')"; \
 		exit 1; \
 	fi
 	@echo "[ok] cargo-deny passed"
+# NOTE: advisories check temporarily skipped due to cargo-deny CVSS 4.0 parsing issue
+# See: https://github.com/EmbarkStudios/cargo-deny/issues/804
+# Re-enable with `cargo-deny check` when fixed upstream
 
 audit: ## Run cargo-audit security scan
 	@echo "Running cargo-audit..."
