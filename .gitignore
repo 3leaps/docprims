@@ -44,3 +44,6 @@ bindings/go/docprims/lib/local/
 # Temporary files
 .tmp/
 *.tmp
+
+# Vulnerability scan output
+sbom/

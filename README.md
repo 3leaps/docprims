@@ -1,6 +1,6 @@
 # docprims
 
-Document text extraction without license constraints.
+Content extraction from documents in a permissive licensing toolkit.
 
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](LICENSE-MIT)
 [![Rust](https://img.shields.io/badge/rust-1.81%2B-orange.svg)](https://www.rust-lang.org/)

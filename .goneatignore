@@ -1,0 +1,6 @@
+# Ignore Go bindings from root-level goneat linting
+# The Go code should be linted from within bindings/go/docprims
+bindings/go/**
+
+# Plans are local-only
+.plans/**
