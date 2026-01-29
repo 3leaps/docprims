@@ -524,6 +524,7 @@ version-patch: ## Bump patch version (0.1.0 -> 0.1.1)
 	new_patch=$$((patch + 1)); \
 	new_version="$$major.$$minor.$$new_patch"; \
 	echo "$$new_version" > $(VERSION_FILE); \
+	sed -i '' "s/^version = \"$$current\"/version = \"$$new_version\"/" Cargo.toml; \
 	echo "Version bumped: $$current -> $$new_version"
 
 version-minor: ## Bump minor version (0.1.0 -> 0.2.0)
@@ -533,6 +534,7 @@ version-minor: ## Bump minor version (0.1.0 -> 0.2.0)
 	new_minor=$$((minor + 1)); \
 	new_version="$$major.$$new_minor.0"; \
 	echo "$$new_version" > $(VERSION_FILE); \
+	sed -i '' "s/^version = \"$$current\"/version = \"$$new_version\"/" Cargo.toml; \
 	echo "Version bumped: $$current -> $$new_version"
 
 version-major: ## Bump major version (0.1.0 -> 1.0.0)
@@ -541,6 +543,7 @@ version-major: ## Bump major version (0.1.0 -> 1.0.0)
 	new_major=$$((major + 1)); \
 	new_version="$$new_major.0.0"; \
 	echo "$$new_version" > $(VERSION_FILE); \
+	sed -i '' "s/^version = \"$$current\"/version = \"$$new_version\"/" Cargo.toml; \
 	echo "Version bumped: $$current -> $$new_version"
 
 version-set: ## Set explicit version (V=X.Y.Z)

@@ -176,7 +176,6 @@ Subject to [3 Leaps OSS policies](https://github.com/3leaps/oss-policies).
 ## Related Projects
 
 - **[sysprims](https://github.com/3leaps/sysprims)** — Process control primitives with the same licensing philosophy (sibling project)
-- **[Gentry](https://github.com/fulmenhq/gentry)** — Content protection scanner (primary consumer of docprims)
 
 ## Contributing
 
