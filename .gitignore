@@ -27,8 +27,10 @@ AGENTS.local.md
 *.so
 *.dll
 *.a
-!ffi-libs/**/*.a
 !bindings/go/docprims/lib/**/*.a
+
+# CI artifact download directory (not for commit)
+ffi-libs/
 
 # Go bindings local builds
 bindings/go/docprims/lib/local/
