@@ -133,6 +133,11 @@ export DOCPRIMS_GPG_HOMEDIR=/path/to/gpg/homedir
    ```
    Produces: `.minisig` and optional `.asc` signatures
 
+   > **Note (Ghostty users):** If GPG fails with "Screen or window too small", prefix with:
+   > ```bash
+   > TERM=xterm-256color make release-sign
+   > ```
+
 5. Export public keys into the release directory:
    ```bash
    make release-export-keys
