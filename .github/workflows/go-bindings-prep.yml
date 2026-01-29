@@ -70,7 +70,7 @@ jobs:
             echo "Fix: update the runner image or install cargo-zigbuild in this job." >&2
             exit 1
           fi
-          cargo zigbuild --version
+          cargo-zigbuild --version
 
       - name: Build FFI
         shell: bash
