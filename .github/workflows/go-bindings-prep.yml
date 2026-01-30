@@ -145,6 +145,10 @@ jobs:
           cp target/aarch64-apple-darwin/release/libdocprims_ffi.a dist/ffi/darwin-arm64/
           cp target/aarch64-apple-darwin/release/libdocprims_ffi.dylib dist/ffi/darwin-arm64/
 
+          # Fix dylib install_name to use @rpath instead of hardcoded CI build path.
+          # This allows consumers to set rpath or place dylib alongside executable.
+          install_name_tool -id "@rpath/libdocprims_ffi.dylib" dist/ffi/darwin-arm64/libdocprims_ffi.dylib
+
       - name: Upload FFI artifact (darwin-arm64)
         uses: actions/upload-artifact@v4
         with:

@@ -10,6 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-01-30
+
+### Fixed
+
+- **Darwin shared library install_name**: macOS dylib now uses `@rpath/libdocprims_ffi.dylib` instead of hardcoded CI build path, enabling proper runtime linking for Go `docprims_shared` consumers
+- **CI: musl shared lib handling**: musl targets correctly skip shared library builds (static-only)
+
+### Changed
+
+- Release checklist: added local testing step for Go static/shared modes
+- TypeScript: npm publish dry-run validated; cross-platform prebuild workflow planned for v0.1.3
+
 ## [0.1.1] - 2026-01-29
 
 ### Added

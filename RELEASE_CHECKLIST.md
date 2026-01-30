@@ -65,11 +65,17 @@ Go bindings must be fetchable via `go get` without requiring Rust.
   gh pr view --web "go-bindings/v${VERSION}"
   ```
 - [ ] Confirm the PR updates the required files:
-  - `bindings/go/docprims/lib/<platform>/libdocprims_ffi.a`
-  - `bindings/go/docprims/lib-shared/<platform>/` (shared libraries for `-tags docprims_shared`)
+  - `bindings/go/docprims/lib/<platform>/libdocprims_ffi.a` (all platforms)
+  - `bindings/go/docprims/lib-shared/<platform>/` (glibc/darwin/windows only; musl is static-only)
   - `bindings/go/docprims/include/docprims.h`
   - `ffi/docprims-ffi/docprims.h`
 - [ ] After merge: ensure `main` is green again
+- [ ] Test both static and shared modes locally:
+  ```bash
+  cd bindings/go/docprims
+  go test -v ./...                      # static (default)
+  make go-test-shared                   # shared (from repo root)
+  ```
 
 ### TypeScript Bindings Validation (Recommended)
 

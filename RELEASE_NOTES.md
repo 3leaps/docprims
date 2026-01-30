@@ -6,6 +6,35 @@
 
 ---
 
+## v0.1.2 - 2026-01-30
+
+**Status:** Patch Release (Go dynamic libs + TypeScript publish prep)
+
+Fixes Go shared library distribution on macOS and captures learnings from TypeScript npm publish dry-run.
+
+### Highlights
+
+- **Darwin dylib fix**: `install_name_tool -id "@rpath/libdocprims_ffi.dylib"` fixes runtime linking for Go `docprims_shared`
+- **CI refinements**: musl targets skip shared lib builds (static-only by design)
+- **TypeScript npm prep**: dry-run validated current setup publishes local platform only; cross-platform prebuild workflow planned
+
+### Go Shared Library (darwin)
+
+```bash
+DYLD_LIBRARY_PATH=./lib-shared/darwin-arm64 go run .  # development
+go build -ldflags="-r /path/to/lib-shared/darwin-arm64" .  # production
+```
+
+### TypeScript (from git checkout)
+
+npm publishing requires cross-platform prebuilds. Until then, use from git:
+
+```bash
+cd bindings/typescript/docprims && npm install && npm run build:native
+```
+
+---
+
 ## v0.1.1 - 2026-01-29
 
 **Status:** Patch Release (TypeScript bindings preview)
