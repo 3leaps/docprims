@@ -95,6 +95,8 @@ Shared library opt-in:
 - Static (default): link from `lib/<platform>/`.
 - Shared (opt-in): build with `-tags docprims_shared` and link from `lib-shared/<platform>/`.
 
+**Note:** Shared library mode is only available for glibc targets. Musl targets are static-only.
+
 Runtime search path for `docprims_shared`:
 
 - Linux: `LD_LIBRARY_PATH` must include the `lib-shared/<platform>` directory

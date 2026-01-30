@@ -108,8 +108,11 @@ jobs:
           TARGET_DIR="$(resolve_target libdocprims_ffi.a)"
           cp "target/${TARGET_DIR}/release/libdocprims_ffi.a" "dist/ffi/${{ matrix.artifact_suffix }}/"
 
-          TARGET_DIR="$(resolve_target libdocprims_ffi.so)"
-          cp "target/${TARGET_DIR}/release/libdocprims_ffi.so" "dist/ffi/${{ matrix.artifact_suffix }}/"
+          # Shared libraries are only built for glibc targets (musl is static-only)
+          if [ -n "${{ matrix.glibc }}" ]; then
+            TARGET_DIR="$(resolve_target libdocprims_ffi.so)"
+            cp "target/${TARGET_DIR}/release/libdocprims_ffi.so" "dist/ffi/${{ matrix.artifact_suffix }}/"
+          fi
 
       - name: Upload FFI artifact
         uses: actions/upload-artifact@v4
@@ -254,6 +257,12 @@ jobs:
             platform=${artifact#ffi-}
             mkdir -p "bindings/go/docprims/lib/$platform"
             cp "$dir/libdocprims_ffi.a" "bindings/go/docprims/lib/$platform/"
+
+            # Shared libraries: musl targets are static-only (no shared lib)
+            if [[ "$platform" == *-musl ]]; then
+              echo "Skipping shared library for musl platform: $platform"
+              continue
+            fi
 
             mkdir -p "bindings/go/docprims/lib-shared/$platform"
             if [ -f "$dir/libdocprims_ffi.so" ]; then
