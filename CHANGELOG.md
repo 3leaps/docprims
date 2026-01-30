@@ -16,11 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Darwin shared library install_name**: macOS dylib now uses `@rpath/libdocprims_ffi.dylib` instead of hardcoded CI build path, enabling proper runtime linking for Go `docprims_shared` consumers
 - **CI: musl shared lib handling**: musl targets correctly skip shared library builds (static-only)
+- **TypeScript Bun support**: Removed overly conservative runtime guard; Bun now works alongside Node.js
 
 ### Changed
 
 - Release checklist: added local testing step for Go static/shared modes
 - TypeScript: npm publish dry-run validated; cross-platform prebuild workflow planned for v0.1.3
+- TypeScript: validated with both Node.js (v22) and Bun (v1.3) runtimes
 
 ## [0.1.1] - 2026-01-29
 

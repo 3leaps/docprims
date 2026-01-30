@@ -80,13 +80,23 @@ Note: the Go bindings vendor a Rust `staticlib` (`libdocprims_ffi.a`). In some a
 
 ### TypeScript
 
-From a git checkout (v0.1.x):
+From a git checkout (v0.1.x). Works with both Node.js and Bun:
 
 ```bash
 cd bindings/typescript/docprims
 npm install
 npm run build
 npm run build:native
+```
+
+From a consumer project using `file:` protocol:
+
+```json
+{
+  "dependencies": {
+    "@3leaps/docprims": "file:/path/to/docprims/bindings/typescript/docprims"
+  }
+}
 ```
 
 ### CLI
@@ -135,7 +145,7 @@ docprims/
 │   └── docprims-ffi/     # C-ABI for language bindings
 └── bindings/
     ├── go/               # Go binding
-    ├── typescript/       # TypeScript/Node binding
+    ├── typescript/       # TypeScript binding (Node.js + Bun)
     └── python/           # Python binding
 ```
 

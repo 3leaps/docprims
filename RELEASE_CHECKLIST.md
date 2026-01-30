@@ -79,11 +79,19 @@ Go bindings must be fetchable via `go get` without requiring Rust.
 
 ### TypeScript Bindings Validation (Recommended)
 
-TypeScript bindings are validated from a git checkout in v0.1.1. npm publishing is deferred to v0.1.2 (OIDC trusted publishing).
+TypeScript bindings support both Node.js and Bun runtimes. npm publishing is deferred pending cross-platform prebuild workflow.
 
 - [ ] Run the TypeScript bindings workflow on `main`:
   ```bash
   gh workflow run "TypeScript Bindings" --ref main
+  ```
+- [ ] (Optional) Local consumer validation with both runtimes:
+  ```bash
+  cd bindings/typescript/docprims
+  npm run build && npm run build:native
+  # Test from external project using file: protocol
+  node test-consumer.js   # Node.js
+  bun test-consumer.js    # Bun
   ```
 
 ### Create and Push Tags
