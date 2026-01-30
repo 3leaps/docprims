@@ -28,12 +28,25 @@ AGENTS.local.md
 *.dll
 *.a
 !bindings/go/docprims/lib/**/*.a
+!bindings/go/docprims/lib-shared/**/*.a
+!bindings/go/docprims/lib-shared/**/*.so
+!bindings/go/docprims/lib-shared/**/*.dylib
+!bindings/go/docprims/lib-shared/**/*.dll
 
 # CI artifact download directory (not for commit)
 ffi-libs/
 
 # Go bindings local builds
 bindings/go/docprims/lib/local/
+bindings/go/docprims/lib-shared/local/
+
+# TypeScript bindings (Node)
+bindings/typescript/**/node_modules/
+bindings/typescript/**/dist/
+bindings/typescript/**/dist-test/
+bindings/typescript/**/.npmrc
+bindings/typescript/**/package-lock.json
+package-lock.json
 
 # Test artifacts
 *.profraw

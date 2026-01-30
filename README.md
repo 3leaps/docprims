@@ -57,6 +57,38 @@ docprims-text = "0.1"
 go get github.com/3leaps/docprims/bindings/go/docprims
 ```
 
+By default, the Go bindings link a vendored static library.
+
+To link the shared library instead (recommended if your application also links another Rust `staticlib` via cgo):
+
+```bash
+go build -tags docprims_shared ./...
+```
+
+Runtime search path notes for `docprims_shared`:
+
+- Linux: set `LD_LIBRARY_PATH` to include `bindings/go/docprims/lib-shared/<platform>`
+- macOS: set `DYLD_LIBRARY_PATH` to include `bindings/go/docprims/lib-shared/<platform>`
+- Windows: add `bindings/go/docprims/lib-shared/windows-amd64` to `PATH`
+
+Note: the Go bindings vendor a Rust `staticlib` (`libdocprims_ffi.a`). In some applications that also link another Rust
+`staticlib` via cgo, the final link can fail with duplicate Rust runtime symbols (commonly `_rust_eh_personality`). In that case, use one of:
+
+- isolate docprims behind a build tag in the consumer until the link model is resolved
+- use the `docprims` CLI as a subprocess
+- switch one Rust dependency to a shared-library distribution
+
+### TypeScript
+
+From a git checkout (v0.1.x):
+
+```bash
+cd bindings/typescript/docprims
+npm install
+npm run build
+npm run build:native
+```
+
 ### CLI
 
 ```bash
