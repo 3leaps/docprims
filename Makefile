@@ -14,7 +14,7 @@
 .PHONY: release-clean release-download release-checksums release-sign
 .PHONY: release-export-keys release-verify-checksums release-verify-signatures
 .PHONY: release-verify-keys release-notes release-upload release
-.PHONY: build-local-go go-test
+.PHONY: build-local-go go-test go-test-shared
 .PHONY: version-patch version-minor version-major version-set version-sync
 .PHONY: check-windows check-windows-msvc check-windows-gnu
 
@@ -61,6 +61,7 @@ help: ## Show available targets
 	@echo "Go bindings:"
 	@echo "  build-local-go  Build FFI for local Go development"
 	@echo "  go-test         Run Go binding tests"
+	@echo "  go-test-shared  Run Go binding tests (shared library)"
 	@echo ""
 	@echo "Release (manual signing):"
 	@echo "  release-clean       Remove dist/release contents"
@@ -382,8 +383,14 @@ build-local-go: cbindgen ## Build FFI for local Go development
 	if [ "$$PLATFORM" != "unknown" ]; then \
 		mkdir -p "bindings/go/docprims/include"; \
 		mkdir -p "bindings/go/docprims/lib/local/$$PLATFORM"; \
+		mkdir -p "bindings/go/docprims/lib-shared/local/$$PLATFORM"; \
 		cp "ffi/docprims-ffi/docprims.h" "bindings/go/docprims/include/docprims.h"; \
 		cp "target/release/libdocprims_ffi.a" "bindings/go/docprims/lib/local/$$PLATFORM/libdocprims_ffi.a"; \
+		if [ "$$UNAME_S" = "Darwin" ]; then \
+			cp "target/release/libdocprims_ffi.dylib" "bindings/go/docprims/lib-shared/local/$$PLATFORM/libdocprims_ffi.dylib"; \
+		elif [ "$$UNAME_S" = "Linux" ]; then \
+			cp "target/release/libdocprims_ffi.so" "bindings/go/docprims/lib-shared/local/$$PLATFORM/libdocprims_ffi.so"; \
+		fi; \
 	else \
 		echo "[--] Unknown host platform for Go lib sync (uname: $$UNAME_S/$$UNAME_M)"; \
 	fi
@@ -391,11 +398,27 @@ build-local-go: cbindgen ## Build FFI for local Go development
 
 go-test: build-local-go ## Run Go binding tests
 	@echo "Running Go tests..."
-	@# Ensure dynamic linker can find libdocprims for cgo tests
-	@DYLD_LIBRARY_PATH="$(CURDIR)/target/release" \
-	LD_LIBRARY_PATH="$(CURDIR)/target/release" \
-	cd $(GO_BINDINGS_DIR) && go test -v ./...
+	@cd $(GO_BINDINGS_DIR) && go test -v ./...
 	@echo "[ok] Go tests passed"
+
+go-test-shared: build-local-go ## Run Go binding tests (shared library)
+	@echo "Running Go tests (shared lib)..."
+	@PLATFORM=""; \
+	UNAME_S="$$(uname -s)"; \
+	UNAME_M="$$(uname -m)"; \
+	if [ "$$UNAME_S" = "Darwin" ] && [ "$$UNAME_M" = "arm64" ]; then PLATFORM="darwin-arm64"; \
+	elif [ "$$UNAME_S" = "Darwin" ] && [ "$$UNAME_M" = "x86_64" ]; then PLATFORM="darwin-amd64"; \
+	elif [ "$$UNAME_S" = "Linux" ] && [ "$$UNAME_M" = "x86_64" ]; then PLATFORM="linux-amd64"; \
+	elif [ "$$UNAME_S" = "Linux" ] && [ "$$UNAME_M" = "aarch64" ]; then PLATFORM="linux-arm64"; \
+	else PLATFORM="unknown"; fi; \
+	if [ "$$PLATFORM" = "unknown" ]; then \
+		echo "[!!] Unknown host platform for shared Go test (uname: $$UNAME_S/$$UNAME_M)"; \
+		exit 1; \
+	fi; \
+	DYLD_LIBRARY_PATH="$(CURDIR)/bindings/go/docprims/lib-shared/local/$$PLATFORM" \
+	LD_LIBRARY_PATH="$(CURDIR)/bindings/go/docprims/lib-shared/local/$$PLATFORM" \
+	cd $(GO_BINDINGS_DIR) && go test -tags docprims_shared -v ./...
+	@echo "[ok] Go tests (shared) passed"
 
 # -----------------------------------------------------------------------------
 # Install

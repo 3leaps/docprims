@@ -1,4 +1,4 @@
-//go:build linux && amd64 && musl
+//go:build linux && amd64 && musl && !docprims_shared
 
 package docprims
 

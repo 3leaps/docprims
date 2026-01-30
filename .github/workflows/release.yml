@@ -63,6 +63,25 @@ jobs:
               echo "ERROR: empty $path"
               exit 1
             fi
+
+            # Shared libs live under lib-shared/<platform>/ and are opt-in via the docprims_shared build tag.
+            shared_dir="bindings/go/docprims/lib-shared/${platform}"
+            if [ ! -d "$shared_dir" ]; then
+              echo "ERROR: missing $shared_dir"
+              exit 1
+            fi
+            case "$platform" in
+              darwin-arm64)
+                test -s "$shared_dir/libdocprims_ffi.dylib" || { echo "ERROR: missing shared dylib for $platform"; exit 1; }
+                ;;
+              windows-amd64)
+                test -s "$shared_dir/docprims_ffi.dll" || { echo "ERROR: missing shared dll for $platform"; exit 1; }
+                test -s "$shared_dir/libdocprims_ffi.dll.a" || { echo "ERROR: missing import lib for $platform"; exit 1; }
+                ;;
+              *)
+                test -s "$shared_dir/libdocprims_ffi.so" || { echo "ERROR: missing shared so for $platform"; exit 1; }
+                ;;
+            esac
           done
 
           echo "Go binding assets verified."

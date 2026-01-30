@@ -90,6 +90,30 @@ Follow the sysprims pattern:
 
 For local development, allow a `lib/local/<platform>/` override path.
 
+Shared library opt-in:
+
+- Static (default): link from `lib/<platform>/`.
+- Shared (opt-in): build with `-tags docprims_shared` and link from `lib-shared/<platform>/`.
+
+Runtime search path for `docprims_shared`:
+
+- Linux: `LD_LIBRARY_PATH` must include the `lib-shared/<platform>` directory
+- macOS: `DYLD_LIBRARY_PATH` must include the `lib-shared/<platform>` directory
+- Windows: `PATH` must include the `lib-shared/windows-amd64` directory
+
+#### Rust static library collisions
+
+Some Go applications may depend on multiple cgo libraries that each vendor a Rust `staticlib`. In that configuration the final
+link can fail with duplicate Rust runtime symbols (commonly `_rust_eh_personality`).
+
+docprims does not currently guarantee co-linking with another Rust `staticlib` in the same Go binary.
+
+Recommended mitigations for consumers:
+
+- Gate docprims usage behind a Go build tag until the conflict is resolved.
+- Use the `docprims` CLI as a subprocess (no link-time interaction).
+- Prefer a shared-library distribution for one of the Rust dependencies.
+
 Musl selection:
 
 - glibc (default): no extra build tags

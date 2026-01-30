@@ -108,6 +108,9 @@ jobs:
           TARGET_DIR="$(resolve_target libdocprims_ffi.a)"
           cp "target/${TARGET_DIR}/release/libdocprims_ffi.a" "dist/ffi/${{ matrix.artifact_suffix }}/"
 
+          TARGET_DIR="$(resolve_target libdocprims_ffi.so)"
+          cp "target/${TARGET_DIR}/release/libdocprims_ffi.so" "dist/ffi/${{ matrix.artifact_suffix }}/"
+
       - name: Upload FFI artifact
         uses: actions/upload-artifact@v4
         with:
@@ -137,6 +140,7 @@ jobs:
           set -euo pipefail
           mkdir -p dist/ffi/darwin-arm64
           cp target/aarch64-apple-darwin/release/libdocprims_ffi.a dist/ffi/darwin-arm64/
+          cp target/aarch64-apple-darwin/release/libdocprims_ffi.dylib dist/ffi/darwin-arm64/
 
       - name: Upload FFI artifact (darwin-arm64)
         uses: actions/upload-artifact@v4
@@ -175,6 +179,8 @@ jobs:
           set -euo pipefail
           mkdir -p dist/ffi/windows-amd64
           cp target/x86_64-pc-windows-gnu/release/libdocprims_ffi.a dist/ffi/windows-amd64/
+          cp target/x86_64-pc-windows-gnu/release/docprims_ffi.dll dist/ffi/windows-amd64/
+          cp target/x86_64-pc-windows-gnu/release/libdocprims_ffi.dll.a dist/ffi/windows-amd64/
 
       - name: Upload FFI artifact
         uses: actions/upload-artifact@v4
@@ -248,6 +254,20 @@ jobs:
             platform=${artifact#ffi-}
             mkdir -p "bindings/go/docprims/lib/$platform"
             cp "$dir/libdocprims_ffi.a" "bindings/go/docprims/lib/$platform/"
+
+            mkdir -p "bindings/go/docprims/lib-shared/$platform"
+            if [ -f "$dir/libdocprims_ffi.so" ]; then
+              cp "$dir/libdocprims_ffi.so" "bindings/go/docprims/lib-shared/$platform/"
+            elif [ -f "$dir/libdocprims_ffi.dylib" ]; then
+              cp "$dir/libdocprims_ffi.dylib" "bindings/go/docprims/lib-shared/$platform/"
+            elif [ -f "$dir/docprims_ffi.dll" ]; then
+              cp "$dir/docprims_ffi.dll" "bindings/go/docprims/lib-shared/$platform/"
+              cp "$dir/libdocprims_ffi.dll.a" "bindings/go/docprims/lib-shared/$platform/"
+            else
+              echo "ERROR: missing shared library in $dir" >&2
+              ls -la "$dir" || true
+              exit 1
+            fi
           done
 
           echo "Go bindings updated for $VERSION"
