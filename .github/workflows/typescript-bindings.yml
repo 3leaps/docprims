@@ -1,0 +1,50 @@
+name: TypeScript Bindings
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  test-typescript:
+    name: Test TypeScript Bindings
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install deps and run tests
+        run: |
+          cd bindings/typescript/docprims
+          npm install
+          npm run test:ci
+
+  test-typescript-alpine:
+    name: Test TypeScript Bindings (Alpine/musl)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run tests in node:20-alpine
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/repo" \
+            -w "/repo/bindings/typescript/docprims" \
+            node:20-alpine \
+            sh -lc '
+              set -eu
+              apk add --no-cache bash curl build-base python3 ca-certificates
+              curl -fsSL https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.85.0
+              . "$HOME/.cargo/env"
+              npm install
+              npm run test:ci
+            '

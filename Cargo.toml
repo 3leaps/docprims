@@ -6,6 +6,7 @@ members = [
     "crates/docprims-ooxml",
     "crates/docprims-cli",
     "ffi/docprims-ffi",
+    "bindings/typescript/docprims/native",
 ]
 
 [workspace.package]

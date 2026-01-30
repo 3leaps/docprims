@@ -1,0 +1,25 @@
+[package]
+name = "docprims-ts-napi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+description = "Node-API addon for @3leaps/docprims (TypeScript bindings)"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { version = "2.16.16", default-features = false, features = ["napi8"] }
+napi-derive = "2.16.13"
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+
+docprims-core.workspace = true
+docprims-text.workspace = true
+docprims-ooxml.workspace = true
+
+[build-dependencies]
+napi-build = "2.0.1"

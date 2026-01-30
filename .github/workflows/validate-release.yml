@@ -33,3 +33,63 @@ jobs:
           go get "${GO_MODULE}@${GO_VERSION}"
 
           echo "Go binding fetch: OK"
+
+  validate-typescript:
+    name: Validate TypeScript Bindings (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build and test TypeScript bindings
+        run: |
+          cd bindings/typescript/docprims
+          npm install
+          npm run test:ci
+
+  validate-typescript-musl:
+    name: Validate TypeScript Bindings (Alpine/musl)
+    runs-on: ubuntu-latest
+    container:
+      image: node:20-alpine
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Install build dependencies
+        shell: sh
+        run: |
+          set -eu
+          apk add --no-cache bash curl build-base python3 git
+
+      - name: Install Rust (rustup)
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.85.0
+          . "$HOME/.cargo/env"
+          rustc -V
+          cargo -V
+
+      - name: Build and test TypeScript bindings
+        working-directory: bindings/typescript/docprims
+        shell: bash
+        run: |
+          set -euo pipefail
+          . "$HOME/.cargo/env"
+          npm install
+          npm run test:ci
