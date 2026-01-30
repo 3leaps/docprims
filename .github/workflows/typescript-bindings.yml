@@ -43,7 +43,7 @@ jobs:
             sh -lc '
               set -eu
               apk add --no-cache bash curl build-base python3 ca-certificates
-              curl -fsSL https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.85.0
+              curl -fsSL https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.88.0
               . "$HOME/.cargo/env"
               npm install
               npm run test:ci
