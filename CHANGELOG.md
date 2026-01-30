@@ -10,6 +10,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-01-29
+
+### Added
+
+- **TypeScript bindings (first cut)** (`bindings/typescript/docprims`)
+  - Node-API native addon (napi-rs) + TypeScript wrapper
+  - `extractFile` / `extractBytes` plus `*Json` variants
+  - Basic tests and CI coverage (linux/macos/windows + Alpine/musl)
+
+- **Go bindings shared-library mode** (`bindings/go/docprims`)
+  - Opt-in build tag: `docprims_shared`
+  - Vendored shared libraries under `bindings/go/docprims/lib-shared/<platform>/`
+
+### Changed
+
+- Golden tests no longer assert `generator.version` to avoid patch bumps breaking fixtures
+- Go bindings docs now mention potential Rust `staticlib` symbol collisions in some cgo applications
+
 ## [0.1.0] - 2026-01-28
 
 Initial release of docprims - GPL-free document text extraction primitives.

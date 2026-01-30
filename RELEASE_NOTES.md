@@ -6,6 +6,28 @@
 
 ---
 
+## v0.1.1 - 2026-01-29
+
+**Status:** Patch Release (TypeScript bindings preview)
+
+Adds first-cut TypeScript/Node.js bindings (Node-API via napi-rs) intended for validation from a git checkout. npm publishing will follow in v0.1.2 once the trusted OIDC publishing workflow lands.
+
+### Highlights
+
+- **TypeScript bindings**: `@3leaps/docprims` wrapper for `extractFile` / `extractBytes` (+ `*Json` variants)
+- **Defensive limits**: `max_input_bytes` enforced for `extractBytes` inputs
+- **CI coverage**: TypeScript tests on linux/macos/windows + Alpine/musl; release validation from a tag
+- **Stable goldens**: CLI golden fixtures ignore `generator.version` across patch bumps
+- **Go bindings (shared lib opt-in)**: `docprims_shared` build tag + vendored shared libraries to avoid Rust `staticlib` collisions
+
+### TypeScript (from git checkout)
+
+```bash
+cd bindings/typescript/docprims
+npm install
+npm run test:ci
+```
+
 ## v0.1.0 - 2026-01-28
 
 **Status:** Initial Release

@@ -66,7 +66,21 @@ fn assert_golden(name: &str, got: &DocprimsExtract) {
     let golden_path = repo_root().join(format!("testdata/golden/v0/{name}.json"));
     let expected: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(golden_path).unwrap()).unwrap();
-    let got_value = serde_json::to_value(got).unwrap();
+    let mut got_value = serde_json::to_value(got).unwrap();
+
+    // Golden fixtures assert the extraction contract shape/content, not the library version.
+    // Keep generator.version stable across patch bumps.
+    if let Some(exp_ver) = expected
+        .pointer("/generator/version")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+    {
+        if let Some(gen) = got_value.get_mut("generator") {
+            if let Some(obj) = gen.as_object_mut() {
+                obj.insert("version".to_string(), serde_json::Value::String(exp_ver));
+            }
+        }
+    }
 
     let validator = v0_validator();
     let errors: Vec<_> = validator.iter_errors(&got_value).collect();

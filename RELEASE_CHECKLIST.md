@@ -66,9 +66,19 @@ Go bindings must be fetchable via `go get` without requiring Rust.
   ```
 - [ ] Confirm the PR updates the required files:
   - `bindings/go/docprims/lib/<platform>/libdocprims_ffi.a`
+  - `bindings/go/docprims/lib-shared/<platform>/` (shared libraries for `-tags docprims_shared`)
   - `bindings/go/docprims/include/docprims.h`
   - `ffi/docprims-ffi/docprims.h`
 - [ ] After merge: ensure `main` is green again
+
+### TypeScript Bindings Validation (Recommended)
+
+TypeScript bindings are validated from a git checkout in v0.1.1. npm publishing is deferred to v0.1.2 (OIDC trusted publishing).
+
+- [ ] Run the TypeScript bindings workflow on `main`:
+  ```bash
+  gh workflow run "TypeScript Bindings" --ref main
+  ```
 
 ### Create and Push Tags
 
@@ -91,6 +101,11 @@ git push origin "v${VERSION}" "bindings/go/docprims/v${VERSION}"
 - [ ] Wait for GitHub Actions workflows on the tag (release build, if configured)
 - [ ] (Recommended) Run Go bindings staged validation:
   - `.github/workflows/go-bindings.yml` (glibc on PR; musl on manual)
+- [ ] (Recommended) Validate the tag (includes Go + TypeScript):
+  ```bash
+  VERSION=$(cat VERSION)
+  gh workflow run "Validate Release" -f tag="v${VERSION}"
+  ```
 
 ## 2. Manual Signing (Local Machine)
 
