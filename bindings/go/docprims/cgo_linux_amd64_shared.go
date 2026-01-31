@@ -4,6 +4,6 @@ package docprims
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/include
-#cgo LDFLAGS: -L${SRCDIR}/lib-shared/local/linux-amd64 -L${SRCDIR}/lib-shared/linux-amd64 -ldocprims_ffi -lm -lpthread -ldl
+#cgo LDFLAGS: -L${SRCDIR}/lib-shared/local/linux-amd64 -L${SRCDIR}/lib-shared/linux-amd64 -Wl,-rpath,${SRCDIR}/lib-shared/local/linux-amd64 -Wl,-rpath,${SRCDIR}/lib-shared/linux-amd64 -ldocprims_ffi -lm -lpthread -ldl
 */
 import "C"

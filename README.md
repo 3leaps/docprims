@@ -67,6 +67,9 @@ go build -tags docprims_shared ./...
 
 Runtime search path notes for `docprims_shared`:
 
+- v0.1.4+: Go bindings embed rpath entries for the vendored `lib-shared/` directories so local builds can run without extra env vars
+- For distributing binaries, prefer bundling the shared library next to your executable and embedding an rpath like `@executable_path` (macOS) / `$ORIGIN` (Linux)
+
 - Linux: set `LD_LIBRARY_PATH` to include `bindings/go/docprims/lib-shared/<platform>`
 - macOS: set `DYLD_LIBRARY_PATH` to include `bindings/go/docprims/lib-shared/<platform>`
 - Windows: add `bindings/go/docprims/lib-shared/windows-amd64` to `PATH`
