@@ -50,6 +50,10 @@ function bindingIdForRuntime(): string {
 	throw new Error(`Unsupported platform for docprims: ${platform}/${arch}`);
 }
 
+function packageNameForBindingId(bindingId: string): string {
+	return `@3leaps/docprims-${bindingId}`;
+}
+
 function localNodeFilename(bindingId: string): string {
 	return `docprims.${bindingId}.node`;
 }
@@ -62,6 +66,7 @@ export function loadNativeBinding(packageRoot: string): DocprimsLib {
 		"native",
 		localNodeFilename(bindingId),
 	);
+	const pkg = packageNameForBindingId(bindingId);
 
 	// Prefer local build (git checkout / local path installs).
 	if (fs.existsSync(localNode)) {
@@ -69,11 +74,21 @@ export function loadNativeBinding(packageRoot: string): DocprimsLib {
 		return require(localNode) as any;
 	}
 
-	throw new Error(
-		"Failed to load docprims native addon for this platform.\n" +
-			`Expected local build at: ${localNode}\n` +
-			"\n" +
-			"If you are installing from a git checkout or local path, build the native addon first:\n" +
-			"  npm run build:native\n",
-	);
+	// Otherwise require the platform package (npm optional dependency).
+	try {
+		// biome-ignore lint/suspicious/noExplicitAny: napi binding is runtime-loaded
+		return require(pkg) as any;
+	} catch (e) {
+		const msg = e instanceof Error ? e.message : String(e);
+		throw new Error(
+			"Failed to load docprims native addon for this platform.\n" +
+				`Expected: ${pkg}\n` +
+				"\n" +
+				"If you are installing from a git checkout or local path, build the native addon first:\n" +
+				"  npm run build:native\n" +
+				"\n" +
+				"If you are installing from npm, the platform prebuild package may be missing or failed to install.\n" +
+				`Original error: ${msg}`,
+		);
+	}
 }

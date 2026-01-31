@@ -73,13 +73,16 @@ jobs:
               darwin-arm64)
                 shared_dir="bindings/go/docprims/lib-shared/${platform}"
                 test -d "$shared_dir" || { echo "ERROR: missing $shared_dir"; exit 1; }
-                test -s "$shared_dir/libdocprims_ffi.dylib" || { echo "ERROR: missing shared dylib for $platform"; exit 1; }
+                test -s "$shared_dir/libdocprims_ffi.dylib" \
+                  || { echo "ERROR: missing shared dylib for $platform"; exit 1; }
                 ;;
               windows-amd64)
                 shared_dir="bindings/go/docprims/lib-shared/${platform}"
                 test -d "$shared_dir" || { echo "ERROR: missing $shared_dir"; exit 1; }
-                test -s "$shared_dir/docprims_ffi.dll" || { echo "ERROR: missing shared dll for $platform"; exit 1; }
-                test -s "$shared_dir/libdocprims_ffi.dll.a" || { echo "ERROR: missing import lib for $platform"; exit 1; }
+                test -s "$shared_dir/docprims_ffi.dll" \
+                  || { echo "ERROR: missing shared dll for $platform"; exit 1; }
+                test -s "$shared_dir/libdocprims_ffi.dll.a" \
+                  || { echo "ERROR: missing import lib for $platform"; exit 1; }
                 ;;
               *)
                 shared_dir="bindings/go/docprims/lib-shared/${platform}"

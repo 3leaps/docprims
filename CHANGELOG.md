@@ -10,6 +10,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-01-31
+
+### Added
+
+- **TypeScript CI/CD workflows**: Cross-platform prebuild and npm publish automation
+  - `typescript-napi-prebuilds.yml`: Builds native addons for linux-x64-gnu, linux-x64-musl, linux-arm64-gnu, linux-arm64-musl, darwin-arm64, win32-x64-msvc
+  - `typescript-npm-publish.yml`: OIDC trusted publishing workflow with tag validation
+- **TypeScript platform packages**: Optional dependencies for cross-platform npm distribution (`@3leaps/docprims-<platform>`)
+- Root `package.json` for monorepo tooling compatibility
+
+### Changed
+
+- TypeScript native loader now falls back to platform packages when local build not present
+
 ## [0.1.2] - 2026-01-30
 
 ### Fixed

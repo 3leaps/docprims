@@ -6,6 +6,39 @@
 
 ---
 
+## v0.1.3 - 2026-01-31
+
+**Status:** Patch Release (TypeScript CI/CD)
+
+Release CI/CD process improvements for TypeScript bindings.
+
+### Highlights
+
+- **Cross-platform prebuilds**: New workflow builds native addons for all supported platforms
+- **npm trusted publishing**: OIDC-based workflow for secure, automated npm releases
+- **Platform packages**: Optional dependencies enable `npm install` without local Rust toolchain
+
+### Supported Platforms
+
+| Platform | Package |
+|----------|---------|
+| Linux x64 (glibc) | `@3leaps/docprims-linux-x64-gnu` |
+| Linux x64 (musl) | `@3leaps/docprims-linux-x64-musl` |
+| Linux arm64 (glibc) | `@3leaps/docprims-linux-arm64-gnu` |
+| Linux arm64 (musl) | `@3leaps/docprims-linux-arm64-musl` |
+| macOS arm64 | `@3leaps/docprims-darwin-arm64` |
+| Windows x64 | `@3leaps/docprims-win32-x64-msvc` |
+
+### Installation (after npm publish)
+
+```bash
+npm install @3leaps/docprims
+```
+
+Platform-specific binaries install automatically as optional dependencies.
+
+---
+
 ## v0.1.2 - 2026-01-30
 
 **Status:** Patch Release (Go dynamic libs + TypeScript publish prep)

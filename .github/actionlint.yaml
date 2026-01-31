@@ -1,0 +1,7 @@
+# actionlint configuration
+# https://github.com/rhysd/actionlint/blob/main/docs/config.md
+
+self-hosted-runner:
+  labels:
+    # GitHub-hosted larger runners (not in actionlint's default list)
+    - ubuntu-latest-arm64-s
