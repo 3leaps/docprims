@@ -142,6 +142,12 @@ Not supported:
 - Each platform package needs separate trusted publisher config on npmjs.com
 - Environment protection adds manual approval step (can be removed if desired)
 
+## Future Improvements
+
+### Use actions/download-artifact@v4 with run-id
+
+The current workflow uses `gh run download` for artifact retrieval. A cleaner approach would be `actions/download-artifact@v4` with the `run-id` input (fewer moving parts, no gh CLI dependency). This would simplify the retry logic and improve reliability.
+
 ## References
 
 - [npm Trusted Publishers Documentation](https://docs.npmjs.com/trusted-publishers/)

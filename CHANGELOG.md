@@ -10,6 +10,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-01-31
+
+### Added
+
+- **ADR-0006**: TypeScript npm publishing standard documenting OIDC trusted publishing configuration
+
+### Changed
+
+- **Go shared library rpath**: Embedded `-Wl,-rpath` entries in cgo LDFLAGS for darwin-arm64, linux-amd64, linux-arm64; local builds no longer require `LD_LIBRARY_PATH`/`DYLD_LIBRARY_PATH`
+- **TypeScript npm publish workflow**: Applied OIDC fixes from sysprims learnings
+  - npm CLI upgrade to 11.5.1 (required for OIDC)
+  - Retry logic for artifact download (transient network errors)
+  - Force OIDC mode pattern (unset tokens, isolated npmrc)
+  - Removed `fetch-tags` (causes git conflict on tag ref)
+- **Release checklist**: Added TypeScript N-API prebuilds step and npm publishing section
+
 ## [0.1.3] - 2026-01-31
 
 ### Added

@@ -6,6 +6,43 @@
 
 ---
 
+## v0.1.4 - 2026-01-31
+
+**Status:** Patch Release (Go rpath + TypeScript OIDC fixes)
+
+Improves Go shared library developer experience and applies npm OIDC publishing fixes from sysprims learnings.
+
+### Highlights
+
+- **Go shared library rpath**: Local builds no longer require `LD_LIBRARY_PATH`/`DYLD_LIBRARY_PATH`
+- **TypeScript npm OIDC fixes**: Workflow now correctly uses OIDC trusted publishing
+- **ADR-0006**: Documents TypeScript npm publishing standard
+
+### Go Shared Library Improvement
+
+v0.1.4 embeds `-Wl,-rpath` entries in cgo LDFLAGS. Local development now works without environment variables:
+
+```bash
+# Before v0.1.4
+DYLD_LIBRARY_PATH=./lib-shared/darwin-arm64 go run .
+
+# v0.1.4+
+go run .  # Just works
+```
+
+For distribution, bundle the shared library and use platform-appropriate rpath:
+- macOS: `@executable_path`
+- Linux: `$ORIGIN`
+
+### TypeScript npm Publishing
+
+The npm publish workflow now correctly uses OIDC trusted publishing:
+- npm CLI upgrade to 11.5.1 (required for OIDC)
+- Force OIDC mode pattern (isolated npmrc, unset tokens)
+- Retry logic for artifact download
+
+---
+
 ## v0.1.3 - 2026-01-31
 
 **Status:** Patch Release (TypeScript CI/CD)
@@ -29,7 +66,7 @@ Release CI/CD process improvements for TypeScript bindings.
 | macOS arm64 | `@3leaps/docprims-darwin-arm64` |
 | Windows x64 | `@3leaps/docprims-win32-x64-msvc` |
 
-### Installation (after npm publish)
+### Installation
 
 ```bash
 npm install @3leaps/docprims
@@ -65,134 +102,6 @@ npm publishing requires cross-platform prebuilds. Until then, use from git:
 ```bash
 cd bindings/typescript/docprims && npm install && npm run build:native
 ```
-
----
-
-## v0.1.1 - 2026-01-29
-
-**Status:** Patch Release (TypeScript bindings preview)
-
-Adds first-cut TypeScript/Node.js bindings (Node-API via napi-rs) intended for validation from a git checkout. npm publishing will follow in v0.1.2 once the trusted OIDC publishing workflow lands.
-
-### Highlights
-
-- **TypeScript bindings**: `@3leaps/docprims` wrapper for `extractFile` / `extractBytes` (+ `*Json` variants)
-- **Defensive limits**: `max_input_bytes` enforced for `extractBytes` inputs
-- **CI coverage**: TypeScript tests on linux/macos/windows + Alpine/musl; release validation from a tag
-- **Stable goldens**: CLI golden fixtures ignore `generator.version` across patch bumps
-- **Go bindings (shared lib opt-in)**: `docprims_shared` build tag + vendored shared libraries to avoid Rust `staticlib` collisions
-
-### TypeScript (from git checkout)
-
-```bash
-cd bindings/typescript/docprims
-npm install
-npm run test:ci
-```
-
-## v0.1.0 - 2026-01-28
-
-**Status:** Initial Release
-
-GPL-free document text extraction primitives for Rust with Go bindings. Extract text from DOCX, XLSX, PPTX, Markdown, HTML, and XML with provenance tracking and schema-validated output.
-
-### Highlights
-
-- **Schema-Validated Output**: All extractors emit `DocprimsExtract` JSON conforming to versioned schemas
-- **Provenance Tracking**: Every text block includes locators back to source (paragraph index, cell ref, etc.)
-- **Defensive Parsing**: Built for untrusted input with configurable resource limits
-- **GPL-Free**: All dependencies permissively licensed (MIT/Apache-2.0)
-
-### Supported Formats
-
-| Format | Crate | Block Types |
-|--------|-------|-------------|
-| Markdown | `docprims-text` | heading, paragraph, code, list_item |
-| HTML | `docprims-text` | block (stripped tags) |
-| XML | `docprims-text` | text (element context) |
-| DOCX | `docprims-ooxml` | paragraph, table_cell |
-| XLSX | `docprims-ooxml` | cell |
-| PPTX | `docprims-ooxml` | shape_text |
-
-### CLI Quick Start
-
-```bash
-# Install
-cargo install --path crates/docprims-cli
-
-# Extract plain text
-docprims extract document.docx
-
-# Extract with structured blocks (JSON)
-docprims extract document.md --format json --include-blocks
-
-# Multi-file NDJSON
-docprims extract *.docx --format json
-```
-
-### Go Bindings
-
-```go
-import "github.com/3leaps/docprims/bindings/go/docprims"
-
-result, err := docprims.ExtractMarkdownV0("README.md", docprims.ExtractLimits{})
-if err != nil {
-    log.Fatal(err)
-}
-fmt.Println(result.Document.Text)
-```
-
-Prebuilt libraries available for:
-- darwin-arm64 (macOS Apple Silicon)
-- linux-amd64, linux-arm64 (glibc)
-- linux-amd64-musl, linux-arm64-musl (Alpine)
-- windows-amd64 (GNU toolchain)
-
-### Output Schema
-
-```json
-{
-  "schema_id": "https://schemas.3leaps.dev/docprims/extract/v0/docprims-extract.schema.json",
-  "schema_version": "1.0.0",
-  "generator": { "name": "docprims", "version": "0.1.0" },
-  "source": {
-    "uri": "./document.md",
-    "format": { "family": "text", "kind": "markdown" },
-    "sha256": "..."
-  },
-  "document": {
-    "quality": { "status": "complete" },
-    "text": "Full extracted text...",
-    "blocks": [
-      {
-        "id": "markdown:heading:0",
-        "kind": "markdown:heading",
-        "text": "Title",
-        "doc_text_range": { "start_byte": 0, "end_byte": 5 },
-        "loc": { "kind": "markdown:locator", "hints": { "block_index": 0 } }
-      }
-    ]
-  }
-}
-```
-
-### Known Limitations
-
-- PDF extraction not yet supported (planned for v0.2)
-- OOXML table structure (rows/columns) not yet exposed in blocks
-- Span annotations (bold/italic) planned for future release
-
-### Dependencies
-
-Core parsing libraries (all MIT/Apache-2.0):
-- `quick-xml` - XML parsing
-- `zip` - ZIP archive handling
-- `pulldown-cmark` - Markdown parsing
-- `scraper` - HTML parsing
-
-### Upgrade Notes
-
-This is the initial release. No upgrade path required.
 
 ---
 
