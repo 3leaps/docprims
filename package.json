@@ -1,5 +1,6 @@
 {
   "name": "docprims-repo",
+  "version": "0.0.0",
   "private": true,
   "description": "Workspace root for repo tooling (non-published)",
   "license": "MIT OR Apache-2.0",

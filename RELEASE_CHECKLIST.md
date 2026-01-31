@@ -77,23 +77,6 @@ Go bindings must be fetchable via `go get` without requiring Rust.
   make go-test-shared                   # shared (from repo root)
   ```
 
-### TypeScript Bindings Validation (Recommended)
-
-TypeScript bindings support both Node.js and Bun runtimes. npm publishing is deferred pending cross-platform prebuild workflow.
-
-- [ ] Run the TypeScript bindings workflow on `main`:
-  ```bash
-  gh workflow run "TypeScript Bindings" --ref main
-  ```
-- [ ] (Optional) Local consumer validation with both runtimes:
-  ```bash
-  cd bindings/typescript/docprims
-  npm run build && npm run build:native
-  # Test from external project using file: protocol
-  node test-consumer.js   # Node.js
-  bun test-consumer.js    # Bun
-  ```
-
 ### Create and Push Tags
 
 Create and push tags that point to the SAME commit (the commit that includes the merged Go bindings PR).
@@ -120,6 +103,23 @@ git push origin "v${VERSION}" "bindings/go/docprims/v${VERSION}"
   VERSION=$(cat VERSION)
   gh workflow run "Validate Release" -f tag="v${VERSION}"
   ```
+
+### TypeScript N-API Prebuilds (Required for npm)
+
+Run the prebuilds workflow on the release tag to build cross-platform native binaries:
+
+- [ ] Trigger prebuilds workflow on the tag:
+  ```bash
+  VERSION=$(cat VERSION)
+  gh workflow run "TypeScript N-API Prebuilds" --ref "v${VERSION}"
+  ```
+- [ ] Wait for completion (builds 6 platforms):
+  ```bash
+  gh run list --workflow="TypeScript N-API Prebuilds" --limit 3
+  ```
+- [ ] Verify all platforms built successfully
+
+The prebuilds must complete before running the npm publish workflow in Section 3.
 
 ## 2. Manual Signing (Local Machine)
 
@@ -190,7 +190,48 @@ export DOCPRIMS_GPG_HOMEDIR=/path/to/gpg/homedir
    make release-upload
    ```
 
-## 3. Post-Release Verification
+## 3. TypeScript npm Publishing
+
+After signing and undrafting the GitHub release, publish to npm.
+
+### Prerequisites
+
+- Prebuilds workflow completed successfully (Section 1)
+- GitHub release is public (not draft)
+- `publish-npm` environment configured on GitHub (for OIDC trusted publishing)
+
+### Publish via Workflow (Recommended)
+
+- [ ] Run the npm publish workflow from the release tag:
+  ```bash
+  VERSION=$(cat VERSION)
+  gh workflow run "TypeScript npm Publish" --ref "v${VERSION}"
+  ```
+- [ ] Monitor workflow:
+  ```bash
+  gh run list --workflow="TypeScript npm Publish" --limit 3
+  ```
+- [ ] Verify publication:
+  ```bash
+  VERSION=$(cat VERSION)
+  npm view "@3leaps/docprims@${VERSION}" version
+  ```
+
+### First-Time Setup (Manual Bootstrap)
+
+For the first publish, the package must be created manually before OIDC publishing works:
+
+```bash
+cd bindings/typescript/docprims
+npm login
+npm publish --access public
+```
+
+This publishes with local platform binary only. Run the workflow publish afterward for cross-platform support.
+
+## 4. Post-Release Verification
 
 - [ ] Verify release is public: `gh release view v$(cat VERSION)`
 - [ ] Download and verify checksums/signatures using the published public keys
+- [ ] Verify npm package: `npm view @3leaps/docprims`
+- [ ] Test Go module: `go get github.com/3leaps/docprims/bindings/go/docprims@v$(cat VERSION)`
