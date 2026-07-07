@@ -1,85 +1,66 @@
 name: go-bindings
-
 on:
   pull_request:
   workflow_dispatch:
-
 jobs:
   go-test-linux-amd64:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.88.0
-
       - uses: actions/setup-go@v5
         with:
           go-version: "1.22.x"
-
       - name: Install cbindgen
         run: cargo install cbindgen --locked
-
       - name: Build FFI and run Go tests (glibc)
         run: |
           make go-test
           make go-test-shared
-
   go-test-darwin-arm64-vendored:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-go@v5
         with:
           go-version: "1.22.x"
-
       - name: Run Go tests (vendored darwin-arm64)
         run: |
           cd bindings/go/docprims
           go test -v ./...
-
   go-test-darwin-arm64-shared:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
-
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.88.0
-
       - uses: actions/setup-go@v5
         with:
           go-version: "1.22.x"
-
       - name: Install cbindgen
         run: cargo install cbindgen --locked
-
       - name: Build FFI and run Go tests (shared)
         run: make go-test-shared
-
   go-test-linux-amd64-musl:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.88.0
-
       - uses: actions/setup-go@v5
         with:
           go-version: "1.22.x"
-
       - name: Install toolchain
         run: |
           sudo apt-get update
           sudo apt-get install -y musl-tools
           rustup target add x86_64-unknown-linux-musl
           cargo install cbindgen --locked
-
       - name: Build musl static lib and run Go tests
         run: |
           make cbindgen

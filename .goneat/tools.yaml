@@ -12,7 +12,6 @@
 #
 # Validate changes with: goneat doctor tools validate
 # See schema: schemas/tools/tools.v1.0.0.json
-
 scopes:
   all:
     description: All tools from all scopes
@@ -31,7 +30,6 @@ scopes:
       - cargo-audit
       - cargo-edit
       - cbindgen
-
   foundation:
     description: Core foundation tools required for goneat and basic AI agent operation
     tools:
@@ -43,7 +41,6 @@ scopes:
       - yamllint
       - prettier
       - actionlint
-
   rust:
     description: Rust development and quality tools
     tools:
@@ -51,18 +48,15 @@ scopes:
       - cargo-audit
       - cargo-edit
       - cbindgen
-
   security:
     description: Security scanning tools
     tools:
       - cargo-audit
       - cargo-deny
-
 tools:
   # ==========================================================================
   # Foundation Tools
   # ==========================================================================
-
   checkmake:
     name: checkmake
     description: Makefile linter
@@ -76,7 +70,6 @@ tools:
     installer_priority:
       all:
         - go-install
-
   ripgrep:
     name: ripgrep
     description: Fast text search - used by goneat for license auditing
@@ -94,7 +87,6 @@ tools:
       windows:
         - scoop
         - winget
-
   jq:
     name: jq
     description: JSON processor - used in CI/CD scripts and cargo metadata parsing
@@ -112,7 +104,6 @@ tools:
       windows:
         - scoop
         - winget
-
   yq:
     name: yq
     description: YAML processor
@@ -130,7 +121,6 @@ tools:
       windows:
         - scoop
         - winget
-
   yamlfmt:
     name: yamlfmt
     description: YAML formatter
@@ -144,7 +134,6 @@ tools:
     installer_priority:
       all:
         - go-install
-
   yamllint:
     name: yamllint
     description: YAML linter
@@ -159,7 +148,6 @@ tools:
         - manual
     install_commands:
       manual: uv tool install yamllint
-
   prettier:
     name: prettier
     description: Opinionated code formatter for markdown and JSON
@@ -173,7 +161,6 @@ tools:
       windows:
         - bun
         - npm
-
   actionlint:
     name: actionlint
     description: GitHub Actions workflow linter
@@ -187,11 +174,9 @@ tools:
     installer_priority:
       all:
         - go-install
-
   # ==========================================================================
   # Rust Tools
   # ==========================================================================
-
   cargo-deny:
     name: cargo-deny
     description: Cargo plugin for license and advisory checks (ADR-0001)
@@ -206,7 +191,6 @@ tools:
         - cargo-install
     install_commands:
       cargo-install: cargo install cargo-deny --locked
-
   cargo-audit:
     name: cargo-audit
     description: Cargo plugin for security vulnerability auditing
@@ -221,7 +205,6 @@ tools:
         - cargo-install
     install_commands:
       cargo-install: cargo install cargo-audit --locked
-
   cargo-edit:
     name: cargo-edit
     description: Cargo plugin for version management (cargo set-version)
@@ -236,7 +219,6 @@ tools:
         - cargo-install
     install_commands:
       cargo-install: cargo install cargo-edit --locked
-
   cbindgen:
     name: cbindgen
     description: Generate C headers from Rust FFI code

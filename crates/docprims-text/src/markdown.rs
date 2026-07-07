@@ -52,10 +52,8 @@ pub fn extract(content: &str) -> Result<ExtractedText> {
                     text.push('\n');
                 }
             }
-            Event::End(TagEnd::Item) => {
-                if !text.ends_with('\n') {
-                    text.push('\n');
-                }
+            Event::End(TagEnd::Item) if !text.ends_with('\n') => {
+                text.push('\n');
             }
             _ => {}
         }

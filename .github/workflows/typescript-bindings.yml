@@ -1,10 +1,8 @@
 name: TypeScript Bindings
-
 on:
   push:
     branches: ["main"]
   pull_request:
-
 jobs:
   test-typescript:
     name: Test TypeScript Bindings
@@ -15,25 +13,20 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-
       - uses: dtolnay/rust-toolchain@stable
-
       - name: Install deps and run tests
         run: |
           cd bindings/typescript/docprims
           npm install
           npm run test:ci
-
   test-typescript-alpine:
     name: Test TypeScript Bindings (Alpine/musl)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Run tests in node:20-alpine
         run: |
           docker run --rm \

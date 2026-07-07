@@ -12,11 +12,11 @@ Cargo.lock
 # macOS
 .DS_Store
 
-# Planning docs (local only)
-.plans/
-
-# Local agent guidance
-AGENTS.local.md
+# Planning and local guidance
+# Defense-in-depth only: these files live outside the repo tree during normal work.
+# Root-anchored so they only match at the repository root.
+/.plans/
+/AGENTS.local.md
 
 # Build artifacts
 /bin/

@@ -16,8 +16,11 @@ This directory contains architectural, design, and security decision records for
 
 | ID       | Title                                               | Status   | Date       |
 | -------- | --------------------------------------------------- | -------- | ---------- |
-| [ADR-0001](ADR-0001-license-policy.md) | License Policy       | Accepted | 2025-01-25 |
-| [ADR-0002](ADR-0002-crate-structure.md) | Crate Structure     | Accepted | 2025-01-25 |
+| [ADR-0001](ADR-0001-license-policy.md) | License Policy | Accepted | 2025-01-25 |
+| [ADR-0002](ADR-0002-crate-structure.md) | Crate Structure | Accepted | 2025-01-25 |
+| [ADR-0003](ADR-0003-input-validation-policy.md) | Input Validation Policy | Accepted | 2025-01-25 |
+| [ADR-0004](ADR-0004-stdout-purity.md) | Stdout Purity for CLI Composability | Accepted | 2025-01-25 |
+| [ADR-0006](ADR-0006-typescript-npm-publishing.md) | TypeScript npm Publishing Standard | Accepted | 2026-01-31 |
 
 ### Design Decision Records (DDR)
 
@@ -29,7 +32,7 @@ This directory contains architectural, design, and security decision records for
 
 | ID       | Title                | Status   | Date       |
 | -------- | -------------------- | -------- | ---------- |
-| _None yet_ |                    |          |            |
+| [SDR-0002](SDR-0002-ooxml-v0-block-granularity.md) | OOXML v0 Block Granularity | Accepted | 2026-01-27 |
 
 ## Creating a New Record
 
