@@ -3,7 +3,7 @@
 Content extraction from documents in a permissive licensing toolkit.
 
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](LICENSE-MIT)
-[![Rust](https://img.shields.io/badge/rust-1.81%2B-orange.svg)](https://www.rust-lang.org/)
+[![Rust](https://img.shields.io/badge/rust-1.85%2B-orange.svg)](https://www.rust-lang.org/)
 
 ## Overview
 
@@ -13,13 +13,13 @@ Content extraction from documents in a permissive licensing toolkit.
 
 | Format   | Crate            | Status  |
 | -------- | ---------------- | ------- |
-| DOCX     | `docprims-ooxml` | Planned |
-| XLSX     | `docprims-ooxml` | Planned |
-| PPTX     | `docprims-ooxml` | Planned |
+| DOCX     | `docprims-ooxml` | Supported |
+| XLSX     | `docprims-ooxml` | Supported |
+| PPTX     | `docprims-ooxml` | Supported |
 | PDF      | `docprims-pdf`   | Future  |
-| Markdown | `docprims-text`  | Planned |
-| HTML     | `docprims-text`  | Planned |
-| XML      | `docprims-text`  | Planned |
+| Markdown | `docprims-text`  | Supported |
+| HTML     | `docprims-text`  | Supported |
+| XML      | `docprims-text`  | Supported |
 
 ### The Problem
 
@@ -131,8 +131,8 @@ docprims extract document.docx
 # Output as JSON with metadata
 docprims extract document.docx --format json --include-metadata
 
-# Extract from multiple formats
-docprims extract report.pdf slides.pptx data.xlsx
+# Extract from multiple supported formats
+docprims extract report.docx slides.pptx data.xlsx notes.md
 ```
 
 ## Architecture
@@ -159,7 +159,7 @@ Project documentation conventions (what is canonical vs planning notes):
 
 ### Prerequisites
 
-- Rust 1.81+
+- Rust 1.85+
 - curl (for bootstrap)
 
 ### Setup

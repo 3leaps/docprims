@@ -7,9 +7,7 @@
 # Run with: goneat assess --categories format
 #           goneat assess --categories lint
 #           goneat assess --all
-
 version: 1
-
 # Rust toolchain checks
 # goneat v0.5.x should support these - if not, fallback to Makefile
 rust:
@@ -30,7 +28,6 @@ rust:
     - "ffi/**/*.rs"
   ignore:
     - "**/target/**"
-
 format:
   # YAML formatting
   yamlfmt:
@@ -41,7 +38,6 @@ format:
       - ".github/workflows/**/*.yaml"
       - ".goneat/**/*.yaml"
     ignore: []
-
 lint:
   # YAML linting (CI workflows, configs)
   yamllint:
@@ -52,7 +48,6 @@ lint:
       - ".github/workflows/**/*.yaml"
       - ".goneat/**/*.yaml"
     ignore: []
-
   # Shell script linting
   shell:
     shfmt:
@@ -68,7 +63,6 @@ lint:
       - "**/target/**"
       - "**/.git/**"
       - ".plans/**"
-
   # GitHub Actions linting
   github_actions:
     actionlint:
@@ -77,7 +71,6 @@ lint:
         - ".github/workflows/**/*.yml"
         - ".github/workflows/**/*.yaml"
       ignore: []
-
   # Makefile linting
   make:
     checkmake:

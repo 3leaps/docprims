@@ -1,13 +1,10 @@
 name: Release
-
 on:
   push:
     tags: ['v*']
-
 env:
   CARGO_TERM_COLOR: always
   MACOSX_DEPLOYMENT_TARGET: "11.0"
-
 jobs:
   validate-version:
     name: Validate Version
@@ -16,7 +13,6 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-
       - name: Validate VERSION matches tag
         id: version
         run: |
@@ -28,14 +24,12 @@ jobs:
           fi
           echo "version=$FILE_VERSION" >> "$GITHUB_OUTPUT"
           echo "Version validated: $FILE_VERSION"
-
   verify-go-bindings-assets:
     name: Verify Go Binding Assets
     runs-on: ubuntu-latest
     needs: validate-version
     steps:
       - uses: actions/checkout@v4
-
       - name: Verify Go module contains prebuilt libs
         run: |
           set -euo pipefail
@@ -93,7 +87,6 @@ jobs:
           done
 
           echo "Go binding assets verified."
-
   build-linux:
     name: Build Linux
     runs-on: ubuntu-latest
@@ -118,7 +111,6 @@ jobs:
             artifact_suffix: linux-arm64-musl
     steps:
       - uses: actions/checkout@v4
-
       - name: Build CLI
         run: |
           if [ -n "${{ matrix.glibc }}" ]; then
@@ -126,7 +118,6 @@ jobs:
           else
             cargo zigbuild --release --target ${{ matrix.target }} -p docprims-cli
           fi
-
       - name: Package CLI
         shell: bash
         run: |
@@ -156,13 +147,11 @@ jobs:
           cp LICENSE-MIT LICENSE-APACHE dist/cli/
           VERSION=${{ needs.validate-version.outputs.version }}
           tar -czf docprims-${VERSION}-${{ matrix.artifact_suffix }}.tar.gz -C dist/cli .
-
       - name: Upload CLI artifact
         uses: actions/upload-artifact@v4
         with:
           name: cli-${{ matrix.artifact_suffix }}
           path: docprims-${{ needs.validate-version.outputs.version }}-${{ matrix.artifact_suffix }}.tar.gz
-
   build-macos:
     name: Build macOS
     runs-on: macos-14
@@ -171,38 +160,31 @@ jobs:
       MACOSX_DEPLOYMENT_TARGET: "11.0"
     steps:
       - uses: actions/checkout@v4
-
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin
-
       - name: Build CLI
         run: cargo build --release --target aarch64-apple-darwin -p docprims-cli
-
       - name: Package CLI
         run: |
           mkdir -p dist/cli
           cp target/aarch64-apple-darwin/release/docprims dist/cli/docprims
           cp LICENSE-MIT LICENSE-APACHE dist/cli/
           tar -czf docprims-${{ needs.validate-version.outputs.version }}-darwin-arm64.tar.gz -C dist/cli .
-
       - name: Upload CLI artifact
         uses: actions/upload-artifact@v4
         with:
           name: cli-darwin-arm64
           path: docprims-${{ needs.validate-version.outputs.version }}-darwin-arm64.tar.gz
-
   build-windows:
     name: Build Windows
     runs-on: windows-latest
     needs: validate-version
     steps:
       - uses: actions/checkout@v4
-
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-gnu
-
       - name: Install MinGW
         uses: msys2/setup-msys2@v2
         with:
@@ -210,11 +192,9 @@ jobs:
           update: true
           install: mingw-w64-x86_64-gcc
           path-type: inherit
-
       - name: Build CLI (GNU target)
         shell: msys2 {0}
         run: cargo build --release --target x86_64-pc-windows-gnu -p docprims-cli
-
       - name: Package CLI
         shell: bash
         run: |
@@ -222,13 +202,11 @@ jobs:
           cp target/x86_64-pc-windows-gnu/release/docprims.exe dist/cli/docprims.exe
           cp LICENSE-MIT LICENSE-APACHE dist/cli/
           cd dist/cli && 7z a -tzip ../../docprims-${{ needs.validate-version.outputs.version }}-windows-amd64.zip .
-
       - name: Upload CLI artifact
         uses: actions/upload-artifact@v4
         with:
           name: cli-windows-amd64
           path: docprims-${{ needs.validate-version.outputs.version }}-windows-amd64.zip
-
   cbindgen:
     name: Generate C Header
     runs-on: ubuntu-latest
@@ -238,16 +216,13 @@ jobs:
     needs: validate-version
     steps:
       - uses: actions/checkout@v4
-
       - name: Generate C header
         run: cbindgen --config cbindgen.toml --crate docprims-ffi --output docprims.h
-
       - name: Upload header
         uses: actions/upload-artifact@v4
         with:
           name: c-header
           path: docprims.h
-
   publish:
     name: Publish Release
     runs-on: ubuntu-latest
@@ -262,19 +237,16 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-
       - name: Download all CLI artifacts
         uses: actions/download-artifact@v4.1.3
         with:
           pattern: cli-*
           path: release-cli
-
       - name: Download C header
         uses: actions/download-artifact@v4.1.3
         with:
           name: c-header
           path: release-header
-
       - name: Organize release files
         run: |
           mkdir -p release
@@ -289,7 +261,6 @@ jobs:
           cp LICENSE-MIT LICENSE-APACHE release/
 
           ls -la release/
-
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
