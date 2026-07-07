@@ -12,10 +12,10 @@ jobs:
         os: [ubuntu-latest, macos-14, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "22"
       - uses: dtolnay/rust-toolchain@stable
       - name: Install deps and run tests
         run: |
@@ -26,13 +26,13 @@ jobs:
     name: Test TypeScript Bindings (Alpine/musl)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Run tests in node:20-alpine
+      - uses: actions/checkout@v7
+      - name: Run tests in node:22-alpine
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/repo" \
             -w "/repo/bindings/typescript/docprims" \
-            node:20-alpine \
+            node:22-alpine \
             sh -lc '
               set -eu
               apk add --no-cache bash curl build-base python3 ca-certificates

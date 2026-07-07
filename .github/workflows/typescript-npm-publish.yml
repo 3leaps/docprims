@@ -34,19 +34,54 @@ jobs:
     steps:
       # Note: Do NOT use fetch-tags here. When running from a tag ref,
       # it causes a git fetch conflict. The tag is already checked out.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
-      - name: Ensure npm CLI supports OIDC
+      - name: Ensure npm trusted publishing runtime
+        env:
+          MIN_TRUSTED_PUBLISH_NODE: '22.14.0'
+          MIN_TRUSTED_PUBLISH_NPM: '11.5.1'
         run: |
           set -euo pipefail
+          version_ge() {
+            local got="${1#v}"
+            local min="${2#v}"
+            local got_major got_minor got_patch min_major min_minor min_patch
+            IFS=. read -r got_major got_minor got_patch _ <<<"${got}"
+            IFS=. read -r min_major min_minor min_patch _ <<<"${min}"
+            got_major="${got_major:-0}"
+            got_minor="${got_minor:-0}"
+            got_patch="${got_patch:-0}"
+            min_major="${min_major:-0}"
+            min_minor="${min_minor:-0}"
+            min_patch="${min_patch:-0}"
+            if [ "${got_major}" -gt "${min_major}" ]; then return 0; fi
+            if [ "${got_major}" -eq "${min_major}" ] &&
+              [ "${got_minor}" -gt "${min_minor}" ]; then return 0; fi
+            if [ "${got_major}" -eq "${min_major}" ] &&
+              [ "${got_minor}" -eq "${min_minor}" ] &&
+              [ "${got_patch}" -ge "${min_patch}" ]; then return 0; fi
+            return 1
+          }
+
+          NODE_VERSION="$(node -p 'process.versions.node')"
+          if ! version_ge "${NODE_VERSION}" "${MIN_TRUSTED_PUBLISH_NODE}"; then
+            echo "::error::Node ${NODE_VERSION} < ${MIN_TRUSTED_PUBLISH_NODE}"
+            exit 1
+          fi
+          echo "node: ${NODE_VERSION}"
+
           echo "npm (before): $(npm --version)"
-          # Trusted publishing requires npm >= 11.5.1
-          npm install -g npm@11.5.1
-          echo "npm (after): $(npm --version)"
+          npm install -g "npm@${MIN_TRUSTED_PUBLISH_NPM}"
+          NPM_VERSION="$(npm --version)"
+          if ! version_ge "${NPM_VERSION}" "${MIN_TRUSTED_PUBLISH_NPM}"; then
+            echo "::error::npm ${NPM_VERSION} < ${MIN_TRUSTED_PUBLISH_NPM}"
+            exit 1
+          fi
+          echo "npm (after): ${NPM_VERSION}"
       - name: Validate running from a tag ref
         run: |
           set -euo pipefail
