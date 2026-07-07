@@ -200,15 +200,11 @@ fn extract_paragraphs(xml: &str) -> Result<Vec<String>> {
                     in_p = true;
                     cur.clear();
                 }
-                b"br" => {
-                    if in_p {
-                        cur.push('\n');
-                    }
+                b"br" if in_p => {
+                    cur.push('\n');
                 }
-                b"tab" => {
-                    if in_p {
-                        cur.push('\t');
-                    }
+                b"tab" if in_p => {
+                    cur.push('\t');
                 }
                 _ => {}
             },
