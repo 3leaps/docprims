@@ -83,7 +83,7 @@ Note: the Go bindings vendor a Rust `staticlib` (`libdocprims_ffi.a`). In some a
 
 ### TypeScript
 
-From a git checkout (v0.1.x). Works with both Node.js and Bun:
+From a git checkout (v0.1.x). Works with Node.js 22+ and Bun:
 
 ```bash
 cd bindings/typescript/docprims
@@ -162,6 +162,7 @@ Project documentation conventions (what is canonical vs planning notes):
 ### Prerequisites
 
 - Rust 1.88+
+- Node.js 22+ for TypeScript bindings
 - curl (for bootstrap)
 
 ### Setup

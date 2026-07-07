@@ -5,6 +5,6 @@
   "description": "Workspace root for repo tooling (non-published)",
   "license": "MIT OR Apache-2.0",
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   }
 }
