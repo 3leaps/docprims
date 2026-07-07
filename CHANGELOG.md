@@ -10,6 +10,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-07-07
+
+### Added
+
+- **npm trusted publishing runtime guard**: Added `scripts/check-npm-trusted-publish-runtime.sh` and wired it into `make lint` plus `npm-publish-prereqs-check`.
+
+### Changed
+
+- **Rust MSRV**: Raised the workspace minimum supported Rust version to 1.88.0.
+- **TypeScript runtime floor**: Raised `@3leaps/docprims` and repo tooling Node.js engine requirements to Node 22 or newer.
+- **TypeScript workflows**: Moved TypeScript binding CI, release validation, and N-API prebuild workflows to Node 22 validation; npm publish remains on Node 24 with explicit Node >=22.14.0 and npm >=11.5.1 trusted-publishing checks.
+- **Repository guidance**: Refreshed agent guidance, canonical documentation pointers, YAML linting configuration, and local-only planning artifact conventions.
+- **README install guidance**: Replaced the unpublished CLI crate install command with repo-root `cargo install --path crates/docprims-cli` guidance.
+
+### Fixed
+
+- **Current stable clippy compatibility**: Updated parser match handling flagged by newer clippy lints.
+
 ## [0.1.4] - 2026-01-31
 
 ### Added

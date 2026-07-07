@@ -6,6 +6,50 @@
 
 ---
 
+## v0.1.5 - 2026-07-07
+
+**Status:** Patch Release (runtime floors + repository guidance)
+
+Refreshes package runtime floors and repository guidance before the next coordinated dependency modernization pass.
+
+### Highlights
+
+- **Rust MSRV**: Raised the workspace MSRV to Rust 1.88.0.
+- **TypeScript Node floor**: `@3leaps/docprims` now requires Node.js 22 or newer.
+- **Trusted publishing guard**: npm publishing now hard-checks Node >=22.14.0 and npm >=11.5.1.
+- **TypeScript workflow alignment**: Binding CI, release validation, and N-API prebuild workflows validate on Node 22.
+- **Repository guidance cleanup**: Agent guidance, local-only planning conventions, and YAML linting configuration were refreshed.
+
+### Runtime Floors
+
+v0.1.5 aligns the project with currently supported runtime floors:
+
+| Component | Floor |
+|-----------|-------|
+| Rust | 1.88.0 |
+| TypeScript package | Node.js 22+ |
+| npm trusted publishing | Node.js >=22.14.0 and npm >=11.5.1 |
+
+The TypeScript package remains on TypeScript 5.x and napi-rs 2.x for this release. TypeScript 6.x and napi-rs 3.x are reserved for a later coordinated modernization pass.
+
+### Release Workflow Hardening
+
+The npm publish workflow now uses a dedicated runtime guard that fails fast if the publish runner is below the trusted-publishing floor. The same guard is available locally through:
+
+```bash
+make npm-publish-prereqs-check
+```
+
+`make lint` also runs this guard so workflow drift is caught during normal quality checks.
+
+### Documentation Updates
+
+- README CLI install guidance now uses `cargo install --path crates/docprims-cli` from a repo checkout.
+- Repository guidance now treats planning artifacts as local-only and non-canonical.
+- YAML linting configuration is explicit at repo root.
+
+---
+
 ## v0.1.4 - 2026-01-31
 
 **Status:** Patch Release (Go rpath + TypeScript OIDC fixes)
@@ -73,35 +117,6 @@ npm install @3leaps/docprims
 ```
 
 Platform-specific binaries install automatically as optional dependencies.
-
----
-
-## v0.1.2 - 2026-01-30
-
-**Status:** Patch Release (Go dynamic libs + TypeScript publish prep)
-
-Fixes Go shared library distribution on macOS and captures learnings from TypeScript npm publish dry-run.
-
-### Highlights
-
-- **Darwin dylib fix**: `install_name_tool -id "@rpath/libdocprims_ffi.dylib"` fixes runtime linking for Go `docprims_shared`
-- **CI refinements**: musl targets skip shared lib builds (static-only by design)
-- **TypeScript npm prep**: dry-run validated current setup publishes local platform only; cross-platform prebuild workflow planned
-
-### Go Shared Library (darwin)
-
-```bash
-DYLD_LIBRARY_PATH=./lib-shared/darwin-arm64 go run .  # development
-go build -ldflags="-r /path/to/lib-shared/darwin-arm64" .  # production
-```
-
-### TypeScript (from git checkout)
-
-npm publishing requires cross-platform prebuilds. Until then, use from git:
-
-```bash
-cd bindings/typescript/docprims && npm install && npm run build:native
-```
 
 ---
 

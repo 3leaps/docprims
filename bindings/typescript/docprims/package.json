@@ -1,6 +1,6 @@
 {
   "name": "@3leaps/docprims",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "GPL-free document text extraction (TypeScript bindings via Node-API native addon)",
   "license": "MIT OR Apache-2.0",
   "repository": {
@@ -44,12 +44,12 @@
   },
   "dependencies": {},
   "optionalDependencies": {
-    "@3leaps/docprims-linux-x64-gnu": "0.1.4",
-    "@3leaps/docprims-linux-x64-musl": "0.1.4",
-    "@3leaps/docprims-linux-arm64-gnu": "0.1.4",
-    "@3leaps/docprims-linux-arm64-musl": "0.1.4",
-    "@3leaps/docprims-darwin-arm64": "0.1.4",
-    "@3leaps/docprims-win32-x64-msvc": "0.1.4"
+    "@3leaps/docprims-linux-x64-gnu": "0.1.5",
+    "@3leaps/docprims-linux-x64-musl": "0.1.5",
+    "@3leaps/docprims-linux-arm64-gnu": "0.1.5",
+    "@3leaps/docprims-linux-arm64-musl": "0.1.5",
+    "@3leaps/docprims-darwin-arm64": "0.1.5",
+    "@3leaps/docprims-win32-x64-msvc": "0.1.5"
   },
   "devDependencies": {
     "@napi-rs/cli": "^2.18.4",
