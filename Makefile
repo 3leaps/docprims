@@ -9,7 +9,7 @@
 #   make build      - Build all crates
 
 .PHONY: all help bootstrap bootstrap-force tools check test fmt lint build clean version install
-.PHONY: precommit prepush deps-check audit deny miri msrv fmt-check
+.PHONY: precommit prepush deps-check audit deny miri msrv fmt-check npm-publish-prereqs-check
 .PHONY: build-release build-ffi cbindgen
 .PHONY: release-clean release-download release-checksums release-sign
 .PHONY: release-export-keys release-verify-checksums release-verify-signatures
@@ -82,7 +82,8 @@ help: ## Show available targets
 	@echo "  deny            Run cargo-deny license and advisory checks"
 	@echo "  audit           Run cargo-audit security scan"
 	@echo "  miri            Run Miri UB detection on unsafe code (nightly)"
-	@echo "  msrv            Verify build with MSRV (Rust 1.85)"
+	@echo "  msrv            Verify build with MSRV (Rust 1.88.0)"
+	@echo "  npm-publish-prereqs-check Verify npm trusted publishing runtime guard"
 	@echo "  check-windows   Cross-check Windows targets (no SDK required)"
 	@echo ""
 	@echo "Version management:"
@@ -235,6 +236,7 @@ fmt-check: ## Check formatting without modifying
 
 lint: ## Run linting (goneat assess or cargo clippy)
 	@echo "Linting..."
+	@bash scripts/check-npm-trusted-publish-runtime.sh
 	@if command -v goneat >/dev/null 2>&1; then \
 		goneat assess --categories lint; \
 	else \
@@ -242,6 +244,9 @@ lint: ## Run linting (goneat assess or cargo clippy)
 		$(CARGO) clippy --workspace --all-targets -- -D warnings; \
 	fi
 	@echo "[ok] Linting passed"
+
+npm-publish-prereqs-check: ## Verify npm trusted publishing runtime guard
+	@bash scripts/check-npm-trusted-publish-runtime.sh
 
 deny: ## Run cargo-deny license and advisory checks
 	@echo "Running cargo-deny..."
@@ -278,14 +283,14 @@ miri: ## Run Miri to detect undefined behavior in unsafe code (requires nightly)
 	fi
 	@echo "[ok] Miri passed"
 
-msrv: ## Verify build with Minimum Supported Rust Version (1.85)
-	@echo "Checking MSRV (1.85)..."
-	@if rustup run 1.85 cargo --version >/dev/null 2>&1; then \
-		rustup run 1.85 cargo build --workspace && \
-		rustup run 1.85 cargo test --workspace; \
+msrv: ## Verify build with Minimum Supported Rust Version (1.88.0)
+	@echo "Checking MSRV (1.88.0)..."
+	@if rustup run 1.88.0 cargo --version >/dev/null 2>&1; then \
+		rustup run 1.88.0 cargo build --workspace && \
+		rustup run 1.88.0 cargo test --workspace; \
 	else \
-		echo "[!!] Rust 1.85 not installed. Install with:"; \
-		echo "  rustup install 1.85"; \
+		echo "[!!] Rust 1.88.0 not installed. Install with:"; \
+		echo "  rustup install 1.88.0"; \
 		exit 1; \
 	fi
 	@echo "[ok] MSRV check passed"

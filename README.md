@@ -3,7 +3,7 @@
 Content extraction from documents in a permissive licensing toolkit.
 
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](LICENSE-MIT)
-[![Rust](https://img.shields.io/badge/rust-1.85%2B-orange.svg)](https://www.rust-lang.org/)
+[![Rust](https://img.shields.io/badge/rust-1.88%2B-orange.svg)](https://www.rust-lang.org/)
 
 ## Overview
 
@@ -104,8 +104,10 @@ From a consumer project using `file:` protocol:
 
 ### CLI
 
+From the repository root:
+
 ```bash
-cargo install docprims-cli
+cargo install --path crates/docprims-cli
 ```
 
 ## Usage
@@ -159,7 +161,7 @@ Project documentation conventions (what is canonical vs planning notes):
 
 ### Prerequisites
 
-- Rust 1.85+
+- Rust 1.88+
 - curl (for bootstrap)
 
 ### Setup
