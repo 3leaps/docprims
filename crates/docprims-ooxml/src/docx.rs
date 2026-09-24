@@ -78,6 +78,13 @@ pub fn extract_v0<R: Read + Seek>(
         } else {
             p
         };
+        if text.is_empty() {
+            // Nothing fits: drop this block's separator rather than emit an empty block.
+            if start > 0 {
+                doc_text.pop();
+            }
+            break;
+        }
         doc_text.push_str(&text);
         let end = doc_text.len();
 

@@ -262,6 +262,13 @@ pub fn extract_v0_str(
         } else {
             text
         };
+        if text.is_empty() {
+            // Nothing fits: drop this block's separator rather than emit an empty block.
+            if start > 0 {
+                doc_text.pop();
+            }
+            break;
+        }
         doc_text.push_str(&text);
         let end = doc_text.len();
 

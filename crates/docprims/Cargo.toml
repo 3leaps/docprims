@@ -66,6 +66,10 @@ required-features = ["text", "ooxml"]
 name = "dispatch"
 required-features = ["text", "ooxml"]
 
+[[test]]
+name = "limits"
+required-features = ["text", "ooxml"]
+
 [[bin]]
 name = "docprims"
 path = "src/main.rs"
