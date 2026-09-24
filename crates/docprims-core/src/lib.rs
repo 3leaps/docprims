@@ -49,6 +49,7 @@ pub fn truncate_to_utf8_boundary(s: &str, max_bytes: usize) -> &str {
 
 /// Errors that can occur during document extraction.
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum DocprimsError {
     /// I/O error reading the document
     #[error("I/O error: {0}")]
@@ -283,6 +284,7 @@ impl DocprimsQuality {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[non_exhaustive]
 pub enum DocprimsQualityStatus {
     Complete,
     Partial,
@@ -369,6 +371,7 @@ pub struct DocprimsContainer {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[non_exhaustive]
 pub enum DocprimsContainerKind {
     File,
     Archive,
