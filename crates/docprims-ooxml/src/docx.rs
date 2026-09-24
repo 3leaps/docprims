@@ -48,6 +48,9 @@ pub fn extract_v0<R: Read + Seek>(
     let mut block_index = 0usize;
 
     for (p_idx, p) in paragraphs.into_iter().enumerate() {
+        // Paragraphs arrive trimmed; filtering removes no whitespace, so
+        // re-trimming yields the same result as filtering before the trim.
+        let p = docprims_core::xml::retain_xml_chars(p).trim().to_string();
         if p.is_empty() {
             continue;
         }

@@ -1,9 +1,10 @@
-//! Character references resolve identically on every XML-based path.
+//! Extracted text contains only XML 1.0 characters, on every format.
 //!
-//! The XML text extractor and the OOXML extractors share one rule: a numeric
-//! character reference resolves only if it names an XML 1.0 `Char`; anything
-//! else is dropped. Markdown and HTML follow their own specs and are pinned
-//! here so a change to either is deliberate.
+//! Numeric character references resolve only if they name an XML 1.0 `Char`
+//! (shared by the XML and OOXML extractors). Separately, every extractor drops
+//! non-XML characters from its text before block byte ranges are computed, so
+//! literal control bytes and HTML/Markdown references to them never reach the
+//! output and provenance ranges still slice the text exactly.
 
 use std::io::{Cursor, Write};
 
@@ -84,26 +85,24 @@ fn xml_and_ooxml_resolve_character_references_identically() {
     }
 }
 
-// Current behaviour, pinned. Literal (unescaped) control characters are not
-// well-formed XML; the parser passes them through on both XML-based paths.
 #[test]
-fn literal_control_characters_pass_through_both_xml_paths() {
+fn literal_control_characters_are_dropped_on_xml_paths() {
     let body = "a\u{1}b\u{1b}c";
-    assert_eq!(via_xml(body), body);
-    assert_eq!(via_docx(body), body);
+    assert_eq!(via_xml(body), "abc");
+    assert_eq!(via_docx(body), "abc");
 }
 
-// Current behaviour, pinned. Markdown and HTML follow the HTML numeric
-// character reference rules: NUL becomes U+FFFD, other controls and
-// noncharacters are passed through.
+// Markdown and HTML decode references per the HTML spec (NUL becomes U+FFFD,
+// which is an XML character and is kept); the final-text filter then drops
+// anything outside the XML character set.
 #[test]
-fn markdown_and_html_character_reference_handling_is_pinned() {
+fn markdown_and_html_output_contains_only_xml_characters() {
     for (reference, expected) in [
         ("&#0;", "\u{fffd}"),
-        ("&#1;", "\u{1}"),
-        ("&#x1B;", "\u{1b}"),
+        ("&#1;", ""),
+        ("&#x1B;", ""),
         ("&#9;", "\t"),
-        ("&#xFFFE;", "\u{fffe}"),
+        ("&#xFFFE;", ""),
         ("&#233;", "\u{e9}"),
     ] {
         let body = format!("a{reference}b");
@@ -115,4 +114,119 @@ fn markdown_and_html_character_reference_handling_is_pinned() {
         );
         assert_eq!(via_html(&body).trim_end(), want, "html: {reference}");
     }
+    assert_eq!(via_markdown("a\u{1b}[31mred\n").trim_end(), "a[31mred");
+    assert_eq!(via_html("a\u{1b}[31mred").trim_end(), "a[31mred");
+}
+
+fn zip_parts(parts: &[(&str, &str)]) -> Vec<u8> {
+    let mut w = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    for (name, body) in parts {
+        w.start_file(*name, zip::write::SimpleFileOptions::default())
+            .unwrap();
+        w.write_all(body.as_bytes()).unwrap();
+    }
+    w.finish().unwrap().into_inner()
+}
+
+/// Every block's byte range slices the document text to exactly the block's
+/// text, and no non-XML character survives anywhere.
+fn assert_clean_and_consistent(label: &str, extract: &docprims_core::DocprimsExtract) {
+    let doc = &extract.document.text;
+    assert!(
+        doc.chars().all(docprims_core::xml::is_xml_char),
+        "{label}: non-XML char in {doc:?}"
+    );
+    assert!(!extract.document.blocks.is_empty(), "{label}: no blocks");
+    for block in &extract.document.blocks {
+        let r = &block.doc_text_range;
+        let slice = doc
+            .get(r.start_byte..r.end_byte)
+            .unwrap_or_else(|| panic!("{label}: range {r:?} invalid for {doc:?}"));
+        assert_eq!(slice, block.text, "{label}: block {}", block.id);
+        assert!(!block.text.is_empty(), "{label}: empty block {}", block.id);
+    }
+}
+
+#[test]
+fn block_ranges_slice_filtered_text_on_every_format() {
+    let l = ExtractLimits::default;
+    // Each input has a clean block, a block with control bytes mid-text, and a
+    // block made only of control bytes (which must vanish, not leave a gap).
+    let md = "first\n\nmid\u{1}dle \u{1b}[0m\n\n\u{7}\u{8}\n\nlast\n";
+    let e = docprims_text::markdown::extract_v0_str(md, "m.md", l()).unwrap();
+    assert_clean_and_consistent("markdown", &e);
+    assert_eq!(e.document.text, "first\nmiddle [0m\nlast");
+
+    let html = "<p>first</p><p>mid\u{1}dle <b>\u{1b}</b>bold</p><p>\u{7}</p><p>last</p>";
+    let e = docprims_text::html::extract_v0_str(html, "h.html", l()).unwrap();
+    assert_clean_and_consistent("html", &e);
+    assert_eq!(e.document.text, "first\nmiddle bold\nlast");
+
+    let xml = "<r><a>first</a><b>mid\u{1}dle&#x1B;</b><c>\u{7}</c><d>last</d></r>";
+    let e = docprims_text::xml::extract_v0_str(xml, "x.xml", l()).unwrap();
+    assert_clean_and_consistent("xml", &e);
+    assert_eq!(e.document.text, "first middle last");
+
+    let p = |t: &str| format!(r#"<w:p><w:r><w:t xml:space="preserve">{t}</w:t></w:r></w:p>"#);
+    let docx = zip_parts(&[(
+        "word/document.xml",
+        &format!(
+            "<w:document {W_NS}><w:body>{}{}{}{}</w:body></w:document>",
+            p("first"),
+            p("mid\u{1}dle "),
+            p("\u{7}"),
+            p("last")
+        ),
+    )]);
+    let e = docprims_ooxml::extract_docx_v0_reader(Cursor::new(docx), "d.docx", l()).unwrap();
+    assert_clean_and_consistent("docx", &e);
+    assert_eq!(e.document.text, "first\nmiddle\nlast");
+
+    const S: &str = r#"xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main""#;
+    const R: &str =
+        r#"xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships""#;
+    let xlsx = zip_parts(&[
+        (
+            "xl/workbook.xml",
+            &format!(
+                r#"<workbook {S} {R}><sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>"#
+            ),
+        ),
+        (
+            "xl/_rels/workbook.xml.rels",
+            r#"<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>"#,
+        ),
+        (
+            "xl/sharedStrings.xml",
+            &format!("<sst {S}><si><t>mid\u{1}dle</t></si><si><t>\u{7}</t></si></sst>"),
+        ),
+        (
+            "xl/worksheets/sheet1.xml",
+            &format!(
+                r#"<worksheet {S}><sheetData><row r="1"><c t="inlineStr"><is><t>first</t></is></c></row><row r="2"><c t="s"><v>0</v></c></row><row r="3"><c t="s"><v>1</v></c></row><row r="4"><c t="inlineStr"><is><t>last</t></is></c></row></sheetData></worksheet>"#
+            ),
+        ),
+    ]);
+    let e = docprims_ooxml::extract_xlsx_v0_reader(Cursor::new(xlsx), "s.xlsx", l()).unwrap();
+    assert_clean_and_consistent("xlsx", &e);
+    assert_eq!(e.document.text, "first\nmiddle\nlast");
+
+    const P: &str = r#"xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main""#;
+    let ap = |t: &str| format!("<a:p><a:r><a:t>{t}</a:t></a:r></a:p>");
+    let pptx = zip_parts(&[
+        ("ppt/presentation.xml", &format!(r#"<p:presentation {P} {R}><p:sldIdLst><p:sldId id="256" r:id="rId1"/></p:sldIdLst></p:presentation>"#)),
+        ("ppt/_rels/presentation.xml.rels", r#"<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide1.xml"/></Relationships>"#),
+        ("ppt/slides/slide1.xml", &format!("<p:sld {P}><p:cSld><p:spTree><p:sp><p:txBody>{}{}{}{}</p:txBody></p:sp></p:spTree></p:cSld></p:sld>", ap("first"), ap("mid\u{1}dle"), ap("\u{7}"), ap("last"))),
+    ]);
+    let e = docprims_ooxml::extract_pptx_v0_reader(Cursor::new(pptx), "p.pptx", l()).unwrap();
+    assert_clean_and_consistent("pptx", &e);
+    assert_eq!(e.document.text, "first\nmiddle\nlast");
+}
+
+#[test]
+fn legacy_extract_api_output_is_filtered_too() {
+    let out = docprims_text::xml::extract("<r>a\u{1}b</r>").unwrap();
+    assert_eq!(out.content, "ab");
+    let out = docprims_text::markdown::extract("a\u{1b}b\n").unwrap();
+    assert!(!out.content.contains('\u{1b}'), "{:?}", out.content);
 }

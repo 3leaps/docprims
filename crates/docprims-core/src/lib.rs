@@ -95,7 +95,7 @@ impl ExtractedText {
     /// Create a new ExtractedText with complete extraction.
     pub fn complete(content: String) -> Self {
         Self {
-            content,
+            content: xml::retain_xml_chars(content),
             metadata: None,
             quality: ExtractionQuality::Complete,
         }
@@ -104,7 +104,7 @@ impl ExtractedText {
     /// Create a new ExtractedText with partial extraction.
     pub fn partial(content: String, reason: String) -> Self {
         Self {
-            content,
+            content: xml::retain_xml_chars(content),
             metadata: None,
             quality: ExtractionQuality::Partial { reason },
         }

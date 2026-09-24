@@ -10,6 +10,17 @@ pub fn is_xml_char(c: char) -> bool {
         | '\u{10000}'..='\u{10FFFF}')
 }
 
+/// Remove every character that is not an XML 1.0 `Char`.
+///
+/// Applied to extracted text before block byte ranges are computed, so the
+/// output of every extractor contains only XML 1.0 characters.
+pub fn retain_xml_chars(text: String) -> String {
+    if text.chars().all(is_xml_char) {
+        return text;
+    }
+    text.chars().filter(|&c| is_xml_char(c)).collect()
+}
+
 /// Resolve the body of a numeric character reference (`#233` or `#xE9`, i.e.
 /// the text between `&` and `;`).
 ///

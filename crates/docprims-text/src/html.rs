@@ -167,6 +167,8 @@ fn extract_block_text(el: &ElementRef<'_>) -> String {
         }
 
         if let Some(t) = node.value().as_text() {
+            let t = docprims_core::xml::retain_xml_chars(t.to_string());
+            let t = t.as_str();
             if is_pre {
                 out.push_str(t);
             } else {

@@ -97,7 +97,8 @@ pub fn extract_v0<R: Read + Seek>(
         };
 
         let rows = extract_sheet_rows(&sheet_xml, &shared_strings)?;
-        for row in rows {
+        for mut row in rows {
+            row.text = docprims_core::xml::retain_xml_chars(row.text);
             if row.text.is_empty() {
                 continue;
             }

@@ -111,7 +111,10 @@ pub fn extract_v0_str(
                  cur_kind: &mut Option<MdBlockKind>,
                  cur_text: &mut String| {
         if let Some(kind) = cur_kind.take() {
-            let t = cur_text.trim_end().to_string();
+            // Filtering removes no whitespace, so re-trimming equals filtering first.
+            let t = docprims_core::xml::retain_xml_chars(cur_text.trim_end().to_string())
+                .trim_end()
+                .to_string();
             cur_text.clear();
             if !t.is_empty() {
                 raw_blocks.push((kind, t));

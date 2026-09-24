@@ -66,6 +66,9 @@ pub fn extract_v0<R: Read + Seek>(
 
         let paras = extract_slide_paragraphs(&xml)?;
         for (p_idx, p) in paras.into_iter().enumerate() {
+            // Paragraphs arrive trimmed; filtering removes no whitespace, so
+            // re-trimming yields the same result as filtering before the trim.
+            let p = docprims_core::xml::retain_xml_chars(p).trim().to_string();
             if p.is_empty() {
                 continue;
             }
