@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **OOXML numeric character references**: DOCX, XLSX and PPTX extraction now resolves numeric character references (`&#233;`, `&#x1F600;`) instead of dropping them, matching the XML extractor. Extracted text changes for documents that contain such references; references that do not name a Unicode scalar value are still dropped.
+
 ## [0.1.5] - 2026-07-07
 
 ### Added
