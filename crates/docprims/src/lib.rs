@@ -58,9 +58,9 @@
 use std::path::Path;
 
 pub use docprims_core::{
-    DocprimsBlock, DocprimsByteRange, DocprimsContainer, DocprimsDocument, DocprimsError,
-    DocprimsExtract, DocprimsFormat, DocprimsGenerator, DocprimsLocation, DocprimsQuality,
-    DocprimsSource, ExtractLimits, Result,
+    DocprimsBlock, DocprimsByteRange, DocprimsContainer, DocprimsContainerKind, DocprimsDocument,
+    DocprimsError, DocprimsExtract, DocprimsFormat, DocprimsGenerator, DocprimsLocation,
+    DocprimsQuality, DocprimsQualityStatus, DocprimsSource, ExtractLimits, Result,
 };
 
 /// A document format docprims can extract.

@@ -87,3 +87,14 @@ fn oversized_input_is_rejected_before_parsing() {
     let err = docprims::extract_bytes("a.md", b"# heading", limits).unwrap_err();
     assert!(matches!(err, DocprimsError::ResourceLimit(_)), "{err:?}");
 }
+
+/// Every type reachable through a public field of the output is nameable
+/// from this crate alone.
+#[test]
+fn output_field_types_are_reexported() {
+    use docprims::{DocprimsContainerKind, DocprimsQualityStatus};
+    let out = docprims::extract_bytes("a.docx", &docx_bytes(), ExtractLimits::default()).unwrap();
+    assert_eq!(out.document.quality.status, DocprimsQualityStatus::Complete);
+    let kind: DocprimsContainerKind = out.document.blocks[0].loc.container.kind;
+    assert_eq!(kind, DocprimsContainerKind::Archive);
+}
