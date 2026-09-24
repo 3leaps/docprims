@@ -1,7 +1,6 @@
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
-use docprims_core::{DocprimsExtract, ExtractLimits};
-use std::io::Cursor;
+use docprims::{DocprimsExtract, ExtractLimits};
 use std::path::{Path, PathBuf};
 
 fn limits() -> ExtractLimits {
@@ -96,7 +95,7 @@ fn assert_golden(name: &str, got: &DocprimsExtract) {
 fn golden_markdown_simple_v0() {
     let src = "testdata/fixtures/text/simple.md";
     let s = read_text_fixture(src);
-    let got = docprims_text::markdown::extract_v0_str(&s, src, limits()).unwrap();
+    let got = docprims::extract_bytes(src, s.as_bytes(), limits()).unwrap();
     assert_golden("markdown-simple", &got);
 }
 
@@ -104,7 +103,7 @@ fn golden_markdown_simple_v0() {
 fn golden_html_simple_v0() {
     let src = "testdata/fixtures/text/simple.html";
     let s = read_text_fixture(src);
-    let got = docprims_text::html::extract_v0_str(&s, src, limits()).unwrap();
+    let got = docprims::extract_bytes(src, s.as_bytes(), limits()).unwrap();
     assert_golden("html-simple", &got);
 }
 
@@ -112,7 +111,7 @@ fn golden_html_simple_v0() {
 fn golden_xml_simple_v0() {
     let src = "testdata/fixtures/text/simple.xml";
     let s = read_text_fixture(src);
-    let got = docprims_text::xml::extract_v0_str(&s, src, limits()).unwrap();
+    let got = docprims::extract_bytes(src, s.as_bytes(), limits()).unwrap();
     assert_golden("xml-simple", &got);
 }
 
@@ -120,8 +119,7 @@ fn golden_xml_simple_v0() {
 fn golden_docx_mini_v0() {
     let src = "testdata/fixtures/ooxml/mini.docx";
     let zip_bytes = read_b64_fixture("testdata/fixtures/ooxml/mini.docx.b64");
-    let got =
-        docprims_ooxml::extract_docx_v0_reader(Cursor::new(zip_bytes), src, limits()).unwrap();
+    let got = docprims::extract_bytes(src, &zip_bytes, limits()).unwrap();
     assert_golden("docx-mini", &got);
 }
 
@@ -129,8 +127,7 @@ fn golden_docx_mini_v0() {
 fn golden_xlsx_mini_v0() {
     let src = "testdata/fixtures/ooxml/mini.xlsx";
     let zip_bytes = read_b64_fixture("testdata/fixtures/ooxml/mini.xlsx.b64");
-    let got =
-        docprims_ooxml::extract_xlsx_v0_reader(Cursor::new(zip_bytes), src, limits()).unwrap();
+    let got = docprims::extract_bytes(src, &zip_bytes, limits()).unwrap();
     assert_golden("xlsx-mini", &got);
 }
 
@@ -138,7 +135,6 @@ fn golden_xlsx_mini_v0() {
 fn golden_pptx_mini_v0() {
     let src = "testdata/fixtures/ooxml/mini.pptx";
     let zip_bytes = read_b64_fixture("testdata/fixtures/ooxml/mini.pptx.b64");
-    let got =
-        docprims_ooxml::extract_pptx_v0_reader(Cursor::new(zip_bytes), src, limits()).unwrap();
+    let got = docprims::extract_bytes(src, &zip_bytes, limits()).unwrap();
     assert_golden("pptx-mini", &got);
 }

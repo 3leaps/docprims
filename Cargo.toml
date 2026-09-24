@@ -4,7 +4,7 @@ members = [
     "crates/docprims-core",
     "crates/docprims-text",
     "crates/docprims-ooxml",
-    "crates/docprims-cli",
+    "crates/docprims",
     "ffi/docprims-ffi",
     "bindings/typescript/docprims/native",
 ]
@@ -19,8 +19,8 @@ authors = ["3leaps Architecture Council"]
 
 [workspace.dependencies]
 docprims-core = { path = "crates/docprims-core" }
-docprims-text = { path = "crates/docprims-text" }
-docprims-ooxml = { path = "crates/docprims-ooxml" }
+docprims-text = { path = "crates/docprims-text", default-features = false }
+docprims-ooxml = { path = "crates/docprims-ooxml", default-features = false }
 
 # Fulmen Ecosystem
 rsfulmen = { version = "=0.2.0", default-features = false, features = ["foundry-core"] }

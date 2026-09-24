@@ -9,13 +9,13 @@
 
 use std::io::{Cursor, Write};
 
-use docprims_core::ExtractLimits;
+use docprims::ExtractLimits;
 
 const W_NS: &str = r#"xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main""#;
 
 fn via_xml(body: &str) -> String {
     let xml = format!("<root>{body}</root>");
-    docprims_text::xml::extract_v0_str(&xml, "mem.xml", ExtractLimits::default())
+    docprims::extract_bytes("mem.xml", xml.as_bytes(), ExtractLimits::default())
         .unwrap()
         .document
         .text
@@ -33,14 +33,14 @@ fn via_docx(body: &str) -> String {
     .unwrap();
     w.write_all(doc.as_bytes()).unwrap();
     let bytes = w.finish().unwrap().into_inner();
-    docprims_ooxml::extract_docx_v0_reader(Cursor::new(bytes), "mem.docx", ExtractLimits::default())
+    docprims::extract_bytes("mem.docx", &bytes, ExtractLimits::default())
         .unwrap()
         .document
         .text
 }
 
 fn via_markdown(body: &str) -> String {
-    docprims_text::markdown::extract_v0_str(body, "mem.md", ExtractLimits::default())
+    docprims::extract_bytes("mem.md", body.as_bytes(), ExtractLimits::default())
         .unwrap()
         .document
         .text
@@ -48,7 +48,7 @@ fn via_markdown(body: &str) -> String {
 
 fn via_html(body: &str) -> String {
     let html = format!("<p>{body}</p>");
-    docprims_text::html::extract_v0_str(&html, "mem.html", ExtractLimits::default())
+    docprims::extract_bytes("mem.html", html.as_bytes(), ExtractLimits::default())
         .unwrap()
         .document
         .text
@@ -161,7 +161,7 @@ fn zip_parts(parts: &[(&str, &str)]) -> Vec<u8> {
 
 /// Every block's byte range slices the document text to exactly the block's
 /// text, and no non-XML character survives anywhere.
-fn assert_clean_and_consistent(label: &str, extract: &docprims_core::DocprimsExtract) {
+fn assert_clean_and_consistent(label: &str, extract: &docprims::DocprimsExtract) {
     let doc = &extract.document.text;
     assert!(
         doc.chars().all(docprims_core::xml::is_output_char),
@@ -184,19 +184,19 @@ fn block_ranges_slice_filtered_text_on_every_format() {
     // Each input has a clean block, a block with control bytes mid-text, and a
     // block made only of control bytes (which must vanish, not leave a gap).
     let md = "first\n\nmid\u{1}d\u{7f}l\u{85}\u{9b}e \u{1b}[0m\n\n\u{7}\u{8}\n\nlast\n";
-    let e = docprims_text::markdown::extract_v0_str(md, "m.md", l()).unwrap();
+    let e = docprims::extract_bytes("m.md", md.as_bytes(), l()).unwrap();
     assert_clean_and_consistent("markdown", &e);
     assert_eq!(e.document.text, "first\nmiddle [0m\nlast");
 
     let html =
         "<p>first</p><p>mid\u{1}d\u{7f}l\u{85}\u{9b}e <b>\u{1b}</b>bold</p><p>\u{7}</p><p>last</p>";
-    let e = docprims_text::html::extract_v0_str(html, "h.html", l()).unwrap();
+    let e = docprims::extract_bytes("h.html", html.as_bytes(), l()).unwrap();
     assert_clean_and_consistent("html", &e);
     assert_eq!(e.document.text, "first\nmiddle bold\nlast");
 
     let xml =
         "<r><a>first</a><b>mid\u{1}d\u{7f}l\u{85}\u{9b}e&#x1B;</b><c>\u{7}</c><d>last</d></r>";
-    let e = docprims_text::xml::extract_v0_str(xml, "x.xml", l()).unwrap();
+    let e = docprims::extract_bytes("x.xml", xml.as_bytes(), l()).unwrap();
     assert_clean_and_consistent("xml", &e);
     assert_eq!(e.document.text, "first middle last");
 
@@ -211,7 +211,7 @@ fn block_ranges_slice_filtered_text_on_every_format() {
             p("last")
         ),
     )]);
-    let e = docprims_ooxml::extract_docx_v0_reader(Cursor::new(docx), "d.docx", l()).unwrap();
+    let e = docprims::extract_bytes("d.docx", &docx, l()).unwrap();
     assert_clean_and_consistent("docx", &e);
     assert_eq!(e.document.text, "first\nmiddle\nlast");
 
@@ -242,7 +242,7 @@ fn block_ranges_slice_filtered_text_on_every_format() {
             ),
         ),
     ]);
-    let e = docprims_ooxml::extract_xlsx_v0_reader(Cursor::new(xlsx), "s.xlsx", l()).unwrap();
+    let e = docprims::extract_bytes("s.xlsx", &xlsx, l()).unwrap();
     assert_clean_and_consistent("xlsx", &e);
     assert_eq!(e.document.text, "first\nmiddle\nlast");
 
@@ -253,15 +253,7 @@ fn block_ranges_slice_filtered_text_on_every_format() {
         ("ppt/_rels/presentation.xml.rels", r#"<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide1.xml"/></Relationships>"#),
         ("ppt/slides/slide1.xml", &format!("<p:sld {P}><p:cSld><p:spTree><p:sp><p:txBody>{}{}{}{}</p:txBody></p:sp></p:spTree></p:cSld></p:sld>", ap("first"), ap("mid\u{1}d\u{7f}l\u{85}\u{9b}e"), ap("\u{7}"), ap("last"))),
     ]);
-    let e = docprims_ooxml::extract_pptx_v0_reader(Cursor::new(pptx), "p.pptx", l()).unwrap();
+    let e = docprims::extract_bytes("p.pptx", &pptx, l()).unwrap();
     assert_clean_and_consistent("pptx", &e);
     assert_eq!(e.document.text, "first\nmiddle\nlast");
-}
-
-#[test]
-fn legacy_extract_api_output_is_filtered_too() {
-    let out = docprims_text::xml::extract("<r>a\u{1}b</r>").unwrap();
-    assert_eq!(out.content, "ab");
-    let out = docprims_text::markdown::extract("a\u{1b}b\n").unwrap();
-    assert!(!out.content.contains('\u{1b}'), "{:?}", out.content);
 }

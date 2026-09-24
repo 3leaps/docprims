@@ -106,6 +106,16 @@ mod tests {
     }
 
     #[test]
+    fn legacy_extracted_text_is_filtered() {
+        assert_eq!(
+            crate::ExtractedText::complete("a\u{1}b\u{9b}c".into()).content,
+            "abc"
+        );
+        let partial = crate::ExtractedText::partial("a\u{1b}b".into(), "limit".into());
+        assert_eq!(partial.content, "ab");
+    }
+
+    #[test]
     fn malformed_references_are_rejected() {
         for reference in ["", "#", "#x", "#xZZ", "#-1", "#99999999999", "amp", "x41"] {
             assert_eq!(resolve_char_ref(reference), None, "{reference:?}");

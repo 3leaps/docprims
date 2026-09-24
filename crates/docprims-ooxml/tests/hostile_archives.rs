@@ -5,6 +5,8 @@
 //! an error rather than a panic, resource use stays bounded, and text is
 //! neither lost nor double-decoded.
 
+#![cfg(all(feature = "docx", feature = "xlsx", feature = "pptx"))]
+
 use std::io::{Cursor, Write};
 use std::time::{Duration, Instant};
 

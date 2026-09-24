@@ -22,6 +22,10 @@
 //! println!("{}", text.content);
 //! ```
 
+#![cfg_attr(
+    not(any(feature = "docx", feature = "xlsx", feature = "pptx")),
+    allow(unused_imports)
+)]
 use docprims_core::{DocprimsError, DocprimsExtract, ExtractLimits, ExtractedText, Result};
 use std::fs::File;
 use std::io::{BufReader, Read};
@@ -61,9 +65,14 @@ pub enum OoxmlFormat {
 pub fn extract(path: impl AsRef<Path>) -> Result<ExtractedText> {
     let path = path.as_ref();
     match detect_format(path) {
+        #[cfg(feature = "docx")]
         Some(OoxmlFormat::Docx) => extract_docx(path),
+        #[cfg(feature = "xlsx")]
         Some(OoxmlFormat::Xlsx) => extract_xlsx(path),
+        #[cfg(feature = "pptx")]
         Some(OoxmlFormat::Pptx) => extract_pptx(path),
+        #[allow(unreachable_patterns)]
+        Some(format) => Err(DocprimsError::UnsupportedFormat(format!("{format:?}"))),
         None => Err(DocprimsError::UnknownFormat(path.display().to_string())),
     }
 }
@@ -195,6 +204,10 @@ pub fn extract_pptx_v0_reader<R: Read + std::io::Seek>(
 }
 
 #[cfg(test)]
+#[cfg_attr(
+    not(all(feature = "docx", feature = "xlsx", feature = "pptx")),
+    allow(dead_code)
+)]
 pub(crate) mod test_support {
     use docprims_core::DocprimsExtract;
     use std::io::{Cursor, Write};

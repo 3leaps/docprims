@@ -1,0 +1,72 @@
+[package]
+name = "docprims"
+description = "GPL-free text extraction with provenance for Markdown, HTML, XML, DOCX, XLSX and PPTX"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[features]
+default = ["text", "ooxml"]
+# Format groups
+text = ["markdown", "html", "xml"]
+ooxml = ["docx", "xlsx", "pptx"]
+# Individual formats
+markdown = ["dep:docprims-text", "docprims-text/markdown"]
+html = ["dep:docprims-text", "docprims-text/html"]
+xml = ["dep:docprims-text", "docprims-text/xml"]
+docx = ["dep:docprims-ooxml", "docprims-ooxml/docx"]
+xlsx = ["dep:docprims-ooxml", "docprims-ooxml/xlsx"]
+pptx = ["dep:docprims-ooxml", "docprims-ooxml/pptx"]
+# The `docprims` command-line tool: `cargo install docprims --features cli`
+cli = [
+    "text",
+    "ooxml",
+    "dep:clap",
+    "dep:rsfulmen",
+    "dep:serde",
+    "dep:serde_json",
+    "dep:tracing",
+    "dep:tracing-subscriber",
+]
+
+[dependencies]
+docprims-core = { workspace = true }
+docprims-text = { workspace = true, optional = true }
+docprims-ooxml = { workspace = true, optional = true }
+
+# CLI only
+clap = { workspace = true, optional = true }
+rsfulmen = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+tracing = { workspace = true, optional = true }
+tracing-subscriber = { workspace = true, optional = true, features = ["env-filter", "json"] }
+
+[dev-dependencies]
+assert_cmd = "2.0"
+predicates = "3.1"
+base64 = "0.23"
+jsonschema = { version = "0.57", default-features = false }
+serde_json = { workspace = true }
+zip = { workspace = true }
+
+# Integration tests exercise every format.
+[[test]]
+name = "golden_v0"
+required-features = ["text", "ooxml"]
+
+[[test]]
+name = "char_refs"
+required-features = ["text", "ooxml"]
+
+[[bin]]
+name = "docprims"
+path = "src/main.rs"
+required-features = ["cli"]
+
+[package.metadata.docs.rs]
+features = ["text", "ooxml"]
+rustdoc-args = ["--cfg", "docsrs"]

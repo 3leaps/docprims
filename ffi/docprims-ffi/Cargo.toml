@@ -13,8 +13,8 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]
 docprims-core = { workspace = true }
-docprims-text = { workspace = true }
-docprims-ooxml = { workspace = true }
+docprims-text = { workspace = true, features = ["markdown", "html", "xml"] }
+docprims-ooxml = { workspace = true, features = ["docx", "xlsx", "pptx"] }
 serde_json = { workspace = true }
 serde = { workspace = true }
 

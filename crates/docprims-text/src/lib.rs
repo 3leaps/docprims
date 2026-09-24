@@ -13,6 +13,10 @@
 //! - `html` - Enable HTML extraction (default)
 //! - `xml` - Enable XML extraction (default)
 
+#![cfg_attr(
+    not(any(feature = "markdown", feature = "html", feature = "xml")),
+    allow(unused_imports, dead_code)
+)]
 use docprims_core::{DocprimsExtract, ExtractLimits, ExtractedText, Result};
 use std::fs::File;
 use std::io::Read;

@@ -18,8 +18,8 @@ serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 
 docprims-core.workspace = true
-docprims-text.workspace = true
-docprims-ooxml.workspace = true
+docprims-text = { workspace = true, features = ["markdown", "html", "xml"] }
+docprims-ooxml = { workspace = true, features = ["docx", "xlsx", "pptx"] }
 
 [build-dependencies]
 napi-build = "2.3"

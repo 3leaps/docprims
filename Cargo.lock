@@ -344,7 +344,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "docprims-cli"
+name = "docprims"
 version = "0.1.5"
 dependencies = [
  "assert_cmd",

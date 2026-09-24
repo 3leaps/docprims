@@ -40,6 +40,8 @@ GONEAT = $(shell command -v goneat 2>/dev/null)
 CARGO = cargo
 # Build against the committed Cargo.lock; fail rather than re-resolve.
 CARGO_LOCKED = --locked
+# Build every feature (including the `cli` binary) in workspace-wide targets.
+CARGO_ALL = --all-features
 # Minimum supported Rust version (workspace rust-version); verified by `make msrv`.
 MSRV = 1.88.0
 
@@ -210,12 +212,12 @@ tools: ## Verify external tools are available
 # Quality Gates
 # -----------------------------------------------------------------------------
 
-check: fmt-check lint test deny audit ## Run all quality checks
+check: fmt-check lint test lean-lib-check deny audit ## Run all quality checks
 	@echo "[ok] All quality checks passed"
 
 test: ## Run test suite
 	@echo "Running tests..."
-	$(CARGO) test --workspace $(CARGO_LOCKED)
+	$(CARGO) test --workspace $(CARGO_ALL) $(CARGO_LOCKED)
 	@echo "[ok] Tests passed"
 
 fmt: ## Format code (goneat assess or cargo fmt)
@@ -245,11 +247,15 @@ lint: ## Run linting (goneat assess + cargo clippy)
 		goneat assess --categories lint; \
 	fi
 	@# goneat v0.6.0 does not run the Rust lint pass; clippy runs directly as the gap-filler.
-	$(CARGO) clippy --workspace --all-targets $(CARGO_LOCKED) -- -D warnings
+	$(CARGO) clippy --workspace --all-targets $(CARGO_ALL) $(CARGO_LOCKED) -- -D warnings
 	@echo "[ok] Linting passed"
 
 npm-publish-prereqs-check: ## Verify npm trusted publishing runtime guard
 	@bash scripts/check-npm-trusted-publish-runtime.sh
+
+lean-lib-check: ## Verify library builds of the docprims crate pull no CLI or unused format dependencies
+	@bash scripts/check-lean-lib.sh
+	@echo "[ok] Lean library dependency check passed"
 
 deny: ## Run cargo-deny license and advisory checks
 	@echo "Running cargo-deny..."
@@ -286,8 +292,8 @@ miri: ## Run Miri to detect undefined behavior in unsafe code (requires nightly)
 msrv: ## Verify build and tests with the Minimum Supported Rust Version
 	@echo "Checking MSRV ($(MSRV))..."
 	@if rustup run $(MSRV) cargo --version >/dev/null 2>&1; then \
-		CARGO_TARGET_DIR=target/msrv rustup run $(MSRV) cargo build --workspace $(CARGO_LOCKED) && \
-		CARGO_TARGET_DIR=target/msrv rustup run $(MSRV) cargo test --workspace $(CARGO_LOCKED); \
+		CARGO_TARGET_DIR=target/msrv rustup run $(MSRV) cargo build --workspace $(CARGO_ALL) $(CARGO_LOCKED) && \
+		CARGO_TARGET_DIR=target/msrv rustup run $(MSRV) cargo test --workspace $(CARGO_ALL) $(CARGO_LOCKED); \
 	else \
 		echo "[!!] Rust $(MSRV) not installed. Install with:"; \
 		echo "  rustup install $(MSRV)"; \
@@ -309,7 +315,7 @@ check-windows-msvc: ## Cross-check Windows MSVC target (type checking only)
 		echo "[..] Installing x86_64-pc-windows-msvc target..."; \
 		rustup target add x86_64-pc-windows-msvc; \
 	fi
-	$(CARGO) check --target x86_64-pc-windows-msvc --workspace
+	$(CARGO) check --target x86_64-pc-windows-msvc --workspace $(CARGO_ALL)
 	@echo "[ok] Windows MSVC check passed"
 
 check-windows-gnu: ## Cross-check Windows GNU target (type checking only)
@@ -318,7 +324,7 @@ check-windows-gnu: ## Cross-check Windows GNU target (type checking only)
 		echo "[..] Installing x86_64-pc-windows-gnu target..."; \
 		rustup target add x86_64-pc-windows-gnu; \
 	fi
-	$(CARGO) check --target x86_64-pc-windows-gnu --workspace
+	$(CARGO) check --target x86_64-pc-windows-gnu --workspace $(CARGO_ALL)
 	@echo "[ok] Windows GNU check passed"
 
 deps-check: ## Check dependencies for cooling violations
@@ -336,12 +342,12 @@ deps-check: ## Check dependencies for cooling violations
 
 build: ## Build all crates (debug)
 	@echo "Building (debug)..."
-	$(CARGO) build --workspace $(CARGO_LOCKED)
+	$(CARGO) build --workspace $(CARGO_ALL) $(CARGO_LOCKED)
 	@echo "[ok] Build complete"
 
 build-release: ## Build all crates (release)
 	@echo "Building (release)..."
-	$(CARGO) build --workspace --release $(CARGO_LOCKED)
+	$(CARGO) build --workspace --release $(CARGO_ALL) $(CARGO_LOCKED)
 	@echo "[ok] Release build complete"
 
 build-ffi: cbindgen ## Build FFI library with C header
