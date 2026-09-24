@@ -241,3 +241,53 @@ fn understated_entry_size_does_not_truncate_text() {
     let out = extract_docx_reader(Cursor::new(bytes)).unwrap();
     assert_eq!(out.content.trim(), long);
 }
+
+// --- numeric character references ------------------------------------------
+
+fn pptx(slide_text: &str) -> Vec<u8> {
+    const P_NS: &str = r#"xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main""#;
+    let pres = format!(
+        r#"{DECL}<p:presentation {P_NS} {R_NS}><p:sldIdLst><p:sldId id="256" r:id="rId1"/></p:sldIdLst></p:presentation>"#
+    );
+    let rels = format!(
+        r#"{DECL}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide1.xml"/></Relationships>"#
+    );
+    let slide = format!(
+        r#"{DECL}<p:sld {P_NS}><p:cSld><p:spTree><p:sp><p:txBody><a:p><a:r><a:t>{slide_text}</a:t></a:r></a:p></p:txBody></p:sp></p:spTree></p:cSld></p:sld>"#
+    );
+    zip_of(&[
+        ("ppt/presentation.xml", &pres),
+        ("ppt/_rels/presentation.xml.rels", &rels),
+        ("ppt/slides/slide1.xml", &slide),
+    ])
+}
+
+const CHAR_REFS: &str = "caf&#233; &#x65E5;&#X672C; &#x1F600; &#38;lt;";
+const CHAR_REFS_DECODED: &str = "caf\u{e9} \u{65e5}\u{672c} \u{1f600} &lt;";
+
+#[test]
+fn numeric_character_references_resolve_in_every_format() {
+    let docx_out = extract_docx_reader(Cursor::new(docx(&para(CHAR_REFS)))).unwrap();
+    assert_eq!(docx_out.content.trim(), CHAR_REFS_DECODED);
+
+    let row = r#"<row r="1"><c r="A1" t="s"><v>0</v></c></row>"#;
+    let xlsx_out = extract_xlsx_reader(Cursor::new(xlsx(row, &[CHAR_REFS]))).unwrap();
+    assert_eq!(xlsx_out.content.trim(), CHAR_REFS_DECODED);
+
+    let inline =
+        format!(r#"<row r="1"><c r="A1" t="inlineStr"><is><t>{CHAR_REFS}</t></is></c></row>"#);
+    let inline_out = extract_xlsx_reader(Cursor::new(xlsx(&inline, &[]))).unwrap();
+    assert_eq!(inline_out.content.trim(), CHAR_REFS_DECODED);
+
+    let pptx_out = extract_pptx_reader(Cursor::new(pptx(CHAR_REFS))).unwrap();
+    assert_eq!(pptx_out.content.trim(), CHAR_REFS_DECODED);
+}
+
+#[test]
+fn unresolvable_character_references_are_dropped() {
+    // Policy (shared with the text/xml extractor): a reference that does not
+    // name a Unicode scalar value is dropped; surrounding text is kept.
+    let refs = "a&#xD800;b&#x110000;c&#99999999999;d&#xZZ;e&#;f&unknown;g";
+    let out = extract_docx_reader(Cursor::new(docx(&para(refs)))).unwrap();
+    assert_eq!(out.content.trim(), "abcdefg");
+}

@@ -168,7 +168,7 @@ fn extract_text_from_document(xml: &str) -> Result<String> {
             }
             Ok(Event::GeneralRef(e)) => {
                 if let Some(resolved) = resolve_entity(&e) {
-                    text.push_str(resolved);
+                    text.push_str(&resolved);
                 }
             }
             Ok(Event::Eof) => break,
@@ -225,7 +225,7 @@ fn extract_paragraphs(xml: &str) -> Result<Vec<String>> {
             Ok(Event::GeneralRef(e)) => {
                 if in_p {
                     if let Some(resolved) = resolve_entity(&e) {
-                        cur.push_str(resolved);
+                        cur.push_str(&resolved);
                     }
                 }
             }

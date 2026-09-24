@@ -356,7 +356,7 @@ fn parse_shared_strings(xml: &str) -> Result<Vec<String>> {
             Ok(Event::GeneralRef(e)) => {
                 if in_si {
                     if let Some(resolved) = resolve_entity(&e) {
-                        current_string.push_str(resolved);
+                        current_string.push_str(&resolved);
                     }
                 }
             }
@@ -443,7 +443,7 @@ fn extract_sheet_rows(xml: &str, shared_strings: &[String]) -> Result<Vec<SheetR
             }
             Ok(Event::GeneralRef(e)) => {
                 if let Some(resolved) = resolve_entity(&e) {
-                    cell_value.push_str(resolved);
+                    cell_value.push_str(&resolved);
                 }
             }
             Ok(Event::Eof) => break,
@@ -514,7 +514,7 @@ fn extract_sheet_text(xml: &str, shared_strings: &[String]) -> Result<String> {
             }
             Ok(Event::GeneralRef(e)) => {
                 if let Some(resolved) = resolve_entity(&e) {
-                    cell_value.push_str(resolved);
+                    cell_value.push_str(&resolved);
                 }
             }
             Ok(Event::Eof) => break,

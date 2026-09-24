@@ -306,7 +306,7 @@ fn extract_slide_text(xml: &str) -> Result<String> {
             }
             Ok(Event::GeneralRef(e)) => {
                 if let Some(resolved) = resolve_entity(&e) {
-                    current_part.push_str(resolved);
+                    current_part.push_str(&resolved);
                 }
             }
             Ok(Event::Eof) => {
@@ -361,7 +361,7 @@ fn extract_slide_paragraphs(xml: &str) -> Result<Vec<String>> {
             }
             Ok(Event::GeneralRef(e)) => {
                 if let Some(resolved) = resolve_entity(&e) {
-                    current.push_str(resolved);
+                    current.push_str(&resolved);
                 }
             }
             Ok(Event::Eof) => {

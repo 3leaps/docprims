@@ -440,16 +440,24 @@ mod tests {
 /// Resolve an XML entity reference to its string value.
 ///
 /// Handles predefined XML entities (lt, gt, amp, apos, quot) and numeric
-/// character references (&#NNN; or &#xHHH;).
-pub fn resolve_entity(name: &str) -> Option<&'static str> {
-    // Try predefined entities first
+/// character references (&#NNN; or &#xHHH;). A numeric reference resolves
+/// when it names a Unicode scalar value; surrogates, out-of-range values and
+/// malformed references resolve to `None`, as do unknown named entities.
+pub fn resolve_entity(name: &str) -> Option<Cow<'static, str>> {
     if let Some(resolved) = resolve_xml_entity(name) {
-        return Some(resolved);
+        return Some(Cow::Borrowed(resolved));
     }
+    parse_numeric_entity(name).map(|c| Cow::Owned(c.to_string()))
+}
 
-    // For numeric entities, we'd need to return an owned String,
-    // but for OOXML content this is rarely needed
-    None
+fn parse_numeric_entity(entity: &str) -> Option<char> {
+    let s = entity.strip_prefix('#')?;
+    let code = if let Some(hex) = s.strip_prefix('x').or_else(|| s.strip_prefix('X')) {
+        u32::from_str_radix(hex, 16).ok()?
+    } else {
+        s.parse::<u32>().ok()?
+    };
+    char::from_u32(code)
 }
 
 /// OOXML namespace constants.
