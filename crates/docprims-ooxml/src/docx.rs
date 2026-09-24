@@ -145,17 +145,17 @@ fn extract_text_from_document(xml: &str) -> Result<String> {
             Ok(Event::Start(e)) => {
                 let local_name = e.local_name();
                 match local_name.as_ref() {
-                    b"p" => {
+                    "p" => {
                         // Paragraph start - add newline if we have content
                         if !text.is_empty() && !text.ends_with('\n') {
                             text.push('\n');
                         }
                     }
-                    b"br" => {
+                    "br" => {
                         // Line break
                         text.push('\n');
                     }
-                    b"tab" => {
+                    "tab" => {
                         // Tab character
                         text.push('\t');
                     }
@@ -163,9 +163,7 @@ fn extract_text_from_document(xml: &str) -> Result<String> {
                 }
             }
             Ok(Event::Text(e)) => {
-                let decoded = e
-                    .decode()
-                    .map_err(|e| DocprimsError::Parse(format!("XML decode error: {}", e)))?;
+                let decoded = e.into_inner();
                 text.push_str(&decoded);
             }
             Ok(Event::GeneralRef(e)) => {
@@ -196,20 +194,20 @@ fn extract_paragraphs(xml: &str) -> Result<Vec<String>> {
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(e)) => match e.local_name().as_ref() {
-                b"p" => {
+                "p" => {
                     in_p = true;
                     cur.clear();
                 }
-                b"br" if in_p => {
+                "br" if in_p => {
                     cur.push('\n');
                 }
-                b"tab" if in_p => {
+                "tab" if in_p => {
                     cur.push('\t');
                 }
                 _ => {}
             },
             Ok(Event::End(e)) => {
-                if e.local_name().as_ref() == b"p" {
+                if e.local_name().as_ref() == "p" {
                     in_p = false;
                     let t = cur.trim().to_string();
                     if !t.is_empty() {
@@ -220,9 +218,7 @@ fn extract_paragraphs(xml: &str) -> Result<Vec<String>> {
             }
             Ok(Event::Text(e)) => {
                 if in_p {
-                    let decoded = e
-                        .decode()
-                        .map_err(|e| DocprimsError::Parse(format!("XML decode error: {}", e)))?;
+                    let decoded = e.into_inner();
                     cur.push_str(&decoded);
                 }
             }

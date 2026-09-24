@@ -223,15 +223,13 @@ fn parse_workbook_sheets(xml: &str) -> Result<Vec<(usize, String, String)>> {
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Empty(e)) | Ok(Event::Start(e)) => {
-                if e.local_name().as_ref() == b"sheet" {
+                if e.local_name().as_ref() == "sheet" {
                     let mut name: Option<String> = None;
                     let mut rid: Option<String> = None;
                     for attr in e.attributes().flatten() {
                         match attr.key.as_ref() {
-                            b"name" => {
-                                name = Some(String::from_utf8_lossy(&attr.value).to_string())
-                            }
-                            b"r:id" => rid = Some(String::from_utf8_lossy(&attr.value).to_string()),
+                            "name" => name = Some(attr.value.to_string()),
+                            "r:id" => rid = Some(attr.value.to_string()),
                             _ => {}
                         }
                     }
@@ -270,15 +268,13 @@ fn parse_relationships(xml: &str) -> Result<HashMap<String, String>> {
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Empty(e)) | Ok(Event::Start(e)) => {
-                if e.local_name().as_ref() == b"Relationship" {
+                if e.local_name().as_ref() == "Relationship" {
                     let mut id: Option<String> = None;
                     let mut target: Option<String> = None;
                     for attr in e.attributes().flatten() {
                         match attr.key.as_ref() {
-                            b"Id" => id = Some(String::from_utf8_lossy(&attr.value).to_string()),
-                            b"Target" => {
-                                target = Some(String::from_utf8_lossy(&attr.value).to_string())
-                            }
+                            "Id" => id = Some(attr.value.to_string()),
+                            "Target" => target = Some(attr.value.to_string()),
                             _ => {}
                         }
                     }
@@ -339,23 +335,21 @@ fn parse_shared_strings(xml: &str) -> Result<Vec<String>> {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(e)) => {
                 let local_name = e.local_name();
-                if local_name.as_ref() == b"si" {
+                if local_name.as_ref() == "si" {
                     in_si = true;
                     current_string.clear();
                 }
             }
             Ok(Event::End(e)) => {
                 let local_name = e.local_name();
-                if local_name.as_ref() == b"si" {
+                if local_name.as_ref() == "si" {
                     strings.push(current_string.trim().to_string());
                     in_si = false;
                 }
             }
             Ok(Event::Text(e)) => {
                 if in_si {
-                    let decoded = e
-                        .decode()
-                        .map_err(|e| DocprimsError::Parse(format!("XML decode error: {}", e)))?;
+                    let decoded = e.into_inner();
                     current_string.push_str(&decoded);
                 }
             }
@@ -398,21 +392,21 @@ fn extract_sheet_rows(xml: &str, shared_strings: &[String]) -> Result<Vec<SheetR
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(e)) => match e.local_name().as_ref() {
-                b"row" => {
+                "row" => {
                     in_row = true;
                     row_text.clear();
                     row_index = None;
                     for attr in e.attributes().flatten() {
-                        if attr.key.as_ref() == b"r" {
-                            row_index = String::from_utf8_lossy(&attr.value).parse::<u64>().ok();
+                        if attr.key.as_ref() == "r" {
+                            row_index = attr.value.parse::<u64>().ok();
                         }
                     }
                 }
-                b"c" => {
+                "c" => {
                     cell_type = None;
                     for attr in e.attributes().flatten() {
-                        if attr.key.as_ref() == b"t" {
-                            cell_type = Some(String::from_utf8_lossy(&attr.value).to_string());
+                        if attr.key.as_ref() == "t" {
+                            cell_type = Some(attr.value.to_string());
                         }
                     }
                     cell_value.clear();
@@ -420,7 +414,7 @@ fn extract_sheet_rows(xml: &str, shared_strings: &[String]) -> Result<Vec<SheetR
                 _ => {}
             },
             Ok(Event::End(e)) => match e.local_name().as_ref() {
-                b"c" => {
+                "c" => {
                     if in_row {
                         let value =
                             resolve_cell_value(cell_value.trim(), &cell_type, shared_strings);
@@ -432,7 +426,7 @@ fn extract_sheet_rows(xml: &str, shared_strings: &[String]) -> Result<Vec<SheetR
                         }
                     }
                 }
-                b"row" => {
+                "row" => {
                     in_row = false;
                     let t = row_text.trim_end().to_string();
                     if !t.is_empty() {
@@ -444,9 +438,7 @@ fn extract_sheet_rows(xml: &str, shared_strings: &[String]) -> Result<Vec<SheetR
                 _ => {}
             },
             Ok(Event::Text(e)) => {
-                let decoded = e
-                    .decode()
-                    .map_err(|e| DocprimsError::Parse(format!("XML decode error: {}", e)))?;
+                let decoded = e.into_inner();
                 cell_value.push_str(&decoded);
             }
             Ok(Event::GeneralRef(e)) => {
@@ -485,17 +477,17 @@ fn extract_sheet_text(xml: &str, shared_strings: &[String]) -> Result<String> {
             Ok(Event::Start(e)) => {
                 let local_name = e.local_name();
                 match local_name.as_ref() {
-                    b"row" => {
+                    "row" => {
                         if !text.is_empty() && !text.ends_with('\n') {
                             text.push('\n');
                         }
                     }
-                    b"c" => {
+                    "c" => {
                         // Cell - check type attribute
                         cell_type = None;
                         for attr in e.attributes().flatten() {
-                            if attr.key.as_ref() == b"t" {
-                                cell_type = Some(String::from_utf8_lossy(&attr.value).to_string());
+                            if attr.key.as_ref() == "t" {
+                                cell_type = Some(attr.value.to_string());
                             }
                         }
                         cell_value.clear();
@@ -505,7 +497,7 @@ fn extract_sheet_text(xml: &str, shared_strings: &[String]) -> Result<String> {
             }
             Ok(Event::End(e)) => {
                 let local_name = e.local_name();
-                if local_name.as_ref() == b"c" {
+                if local_name.as_ref() == "c" {
                     // Output cell value
                     let value = resolve_cell_value(cell_value.trim(), &cell_type, shared_strings);
                     if !value.is_empty() {
@@ -517,9 +509,7 @@ fn extract_sheet_text(xml: &str, shared_strings: &[String]) -> Result<String> {
                 }
             }
             Ok(Event::Text(e)) => {
-                let decoded = e
-                    .decode()
-                    .map_err(|e| DocprimsError::Parse(format!("XML decode error: {}", e)))?;
+                let decoded = e.into_inner();
                 cell_value.push_str(&decoded);
             }
             Ok(Event::GeneralRef(e)) => {

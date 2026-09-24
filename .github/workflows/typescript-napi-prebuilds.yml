@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
       - name: Install Rust
@@ -27,9 +27,11 @@ jobs:
           rustup target add \
             x86_64-unknown-linux-musl \
             aarch64-unknown-linux-musl
+      - name: Install cargo-zigbuild (pinned; napi --cross-compile would otherwise fetch latest)
+        run: cargo install cargo-zigbuild --locked --version 0.23.4
       - name: Install Node dependencies
         working-directory: bindings/typescript/docprims
-        run: npm install
+        run: npm install --omit=optional
       - name: Build .node files (zig)
         working-directory: bindings/typescript/docprims
         shell: bash
@@ -39,21 +41,21 @@ jobs:
           mkdir -p prebuilds
 
           # glibc baseline (2.17) for broad compatibility
-          npx napi build --cargo-cwd native --release --platform --js false --strip \
-            --target x86_64-unknown-linux-gnu --zig --zig-abi-suffix 2.17
+          npx napi build --manifest-path native/Cargo.toml --release --platform --no-js --strip \
+            --target x86_64-unknown-linux-gnu --use-napi-cross
           mv docprims.linux-x64-gnu.node prebuilds/
 
-          npx napi build --cargo-cwd native --release --platform --js false --strip \
-            --target x86_64-unknown-linux-musl --zig
+          npx napi build --manifest-path native/Cargo.toml --release --platform --no-js --strip \
+            --target x86_64-unknown-linux-musl --cross-compile
           mv docprims.linux-x64-musl.node prebuilds/
 
           # arm64-gnu built natively on ubuntu-latest-arm64-s (build-linux-arm64 job)
 
-          npx napi build --cargo-cwd native --release --platform --js false --strip \
-            --target aarch64-unknown-linux-musl --zig
+          npx napi build --manifest-path native/Cargo.toml --release --platform --no-js --strip \
+            --target aarch64-unknown-linux-musl --cross-compile
           mv docprims.linux-arm64-musl.node prebuilds/
       - name: Upload prebuilds
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ts-prebuilds-linux
           path: bindings/typescript/docprims/prebuilds/*.node
@@ -63,14 +65,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Install Node dependencies
         working-directory: bindings/typescript/docprims
-        run: npm install
+        run: npm install --omit=optional
       - name: Build .node file
         working-directory: bindings/typescript/docprims
         shell: bash
@@ -78,10 +80,10 @@ jobs:
           set -euo pipefail
           rm -f docprims.*.node
           mkdir -p prebuilds
-          npx napi build --cargo-cwd native --release --platform --js false --strip
+          npx napi build --manifest-path native/Cargo.toml --release --platform --no-js --strip
           mv docprims.linux-arm64-gnu.node prebuilds/
       - name: Upload prebuild
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ts-prebuilds-linux-arm64-gnu-native
           path: bindings/typescript/docprims/prebuilds/*.node
@@ -91,14 +93,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Install Node dependencies
         working-directory: bindings/typescript/docprims
-        run: npm install
+        run: npm install --omit=optional
       - name: Build .node file
         working-directory: bindings/typescript/docprims
         shell: bash
@@ -106,10 +108,10 @@ jobs:
           set -euo pipefail
           rm -f docprims.*.node
           mkdir -p prebuilds
-          npx napi build --cargo-cwd native --release --platform --js false --strip
+          npx napi build --manifest-path native/Cargo.toml --release --platform --no-js --strip
           mv docprims.darwin-arm64.node prebuilds/
       - name: Upload prebuild
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ts-prebuilds-darwin-arm64
           path: bindings/typescript/docprims/prebuilds/*.node
@@ -119,14 +121,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Install Node dependencies
         working-directory: bindings/typescript/docprims
-        run: npm install
+        run: npm install --omit=optional
       - name: Build .node file
         working-directory: bindings/typescript/docprims
         shell: pwsh
@@ -134,10 +136,10 @@ jobs:
           $ErrorActionPreference = 'Stop'
           Remove-Item -Force docprims.*.node -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force -Path prebuilds | Out-Null
-          npx napi build --cargo-cwd native --release --platform --js false --strip
+          npx napi build --manifest-path native/Cargo.toml --release --platform --no-js --strip
           Move-Item docprims.win32-x64-msvc.node prebuilds/
       - name: Upload prebuild
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ts-prebuilds-win32-x64-msvc
           path: bindings/typescript/docprims/prebuilds/*.node
@@ -148,14 +150,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Install Node dependencies
         working-directory: bindings/typescript/docprims
-        run: npm install
+        run: npm install --omit=optional
       - name: Build JS dist (root package)
         working-directory: bindings/typescript/docprims
         run: npm run clean && npm run build && npm run build:native
@@ -166,7 +168,7 @@ jobs:
           set -euo pipefail
           rm -f dist/native/docprims.*.node || true
       - name: Download prebuilds
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: ts-prebuilds-*
           path: downloaded-prebuilds
@@ -176,7 +178,7 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf npm
-          npx napi create-npm-dir -t .
+          npx napi create-npm-dirs
       - name: Remove unsupported platform packages
         working-directory: bindings/typescript/docprims
         shell: bash
@@ -201,7 +203,7 @@ jobs:
             cp "$f" "$dest"
           done
       - name: Upload npm dir
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ts-npm-dir
           path: bindings/typescript/docprims/npm

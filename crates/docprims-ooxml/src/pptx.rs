@@ -183,10 +183,10 @@ fn parse_presentation_slide_rids(xml: &str) -> Result<Vec<String>> {
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Empty(e)) | Ok(Event::Start(e)) => {
-                if e.local_name().as_ref() == b"sldId" {
+                if e.local_name().as_ref() == "sldId" {
                     for attr in e.attributes().flatten() {
-                        if attr.key.as_ref() == b"r:id" {
-                            rids.push(String::from_utf8_lossy(&attr.value).to_string());
+                        if attr.key.as_ref() == "r:id" {
+                            rids.push(attr.value.to_string());
                         }
                     }
                 }
@@ -215,15 +215,13 @@ fn parse_relationships(xml: &str) -> Result<HashMap<String, String>> {
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Empty(e)) | Ok(Event::Start(e)) => {
-                if e.local_name().as_ref() == b"Relationship" {
+                if e.local_name().as_ref() == "Relationship" {
                     let mut id: Option<String> = None;
                     let mut target: Option<String> = None;
                     for attr in e.attributes().flatten() {
                         match attr.key.as_ref() {
-                            b"Id" => id = Some(String::from_utf8_lossy(&attr.value).to_string()),
-                            b"Target" => {
-                                target = Some(String::from_utf8_lossy(&attr.value).to_string())
-                            }
+                            "Id" => id = Some(attr.value.to_string()),
+                            "Target" => target = Some(attr.value.to_string()),
                             _ => {}
                         }
                     }
@@ -282,7 +280,7 @@ fn extract_slide_text(xml: &str) -> Result<String> {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(e)) => {
                 let local_name = e.local_name();
-                if local_name.as_ref() == b"p" {
+                if local_name.as_ref() == "p" {
                     // Paragraph start - flush and prepare for new paragraph
                     let trimmed = current_part.trim();
                     if !trimmed.is_empty() {
@@ -293,7 +291,7 @@ fn extract_slide_text(xml: &str) -> Result<String> {
             }
             Ok(Event::End(e)) => {
                 let local_name = e.local_name();
-                if local_name.as_ref() == b"p" {
+                if local_name.as_ref() == "p" {
                     // Paragraph end - flush current content
                     let trimmed = current_part.trim();
                     if !trimmed.is_empty() {
@@ -303,9 +301,7 @@ fn extract_slide_text(xml: &str) -> Result<String> {
                 }
             }
             Ok(Event::Text(e)) => {
-                let decoded = e
-                    .decode()
-                    .map_err(|e| DocprimsError::Parse(format!("XML decode error: {}", e)))?;
+                let decoded = e.into_inner();
                 current_part.push_str(&decoded);
             }
             Ok(Event::GeneralRef(e)) => {
@@ -342,7 +338,7 @@ fn extract_slide_paragraphs(xml: &str) -> Result<Vec<String>> {
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(e)) => {
-                if e.local_name().as_ref() == b"p" {
+                if e.local_name().as_ref() == "p" {
                     let trimmed = current.trim();
                     if !trimmed.is_empty() {
                         paras.push(trimmed.to_string());
@@ -351,7 +347,7 @@ fn extract_slide_paragraphs(xml: &str) -> Result<Vec<String>> {
                 }
             }
             Ok(Event::End(e)) => {
-                if e.local_name().as_ref() == b"p" {
+                if e.local_name().as_ref() == "p" {
                     let trimmed = current.trim();
                     if !trimmed.is_empty() {
                         paras.push(trimmed.to_string());
@@ -360,9 +356,7 @@ fn extract_slide_paragraphs(xml: &str) -> Result<Vec<String>> {
                 }
             }
             Ok(Event::Text(e)) => {
-                let decoded = e
-                    .decode()
-                    .map_err(|e| DocprimsError::Parse(format!("XML decode error: {}", e)))?;
+                let decoded = e.into_inner();
                 current.push_str(&decoded);
             }
             Ok(Event::GeneralRef(e)) => {

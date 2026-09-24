@@ -23,23 +23,23 @@ docprims-text = { path = "crates/docprims-text" }
 docprims-ooxml = { path = "crates/docprims-ooxml" }
 
 # Fulmen Ecosystem
-rsfulmen = { version = "=0.1.2", default-features = false, features = ["foundry-core"] }
+rsfulmen = { version = "=0.2.0", default-features = false, features = ["foundry-core"] }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
 # Time
-time = { version = "0.3", features = ["formatting", "serde"] }
+time = { version = "0.3.47", features = ["formatting", "serde"] }
 
 # XML parsing (GPL-free)
-quick-xml = "0.39"
+quick-xml = "0.42"
 
 # ZIP archive handling (GPL-free)
-zip = { version = "2", default-features = false, features = ["deflate"] }
+zip = { version = "8", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 # HTML parsing (GPL-free)
-scraper = "0.25"
+scraper = "0.27"
 
 # Markdown parsing (GPL-free)
 pulldown-cmark = "0.13"

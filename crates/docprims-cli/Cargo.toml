@@ -30,5 +30,5 @@ tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 [dev-dependencies]
 assert_cmd = "2.0"
 predicates = "3.1"
-base64 = "0.22"
-jsonschema = "0.32"
+base64 = "0.23"
+jsonschema = { version = "0.57", default-features = false }

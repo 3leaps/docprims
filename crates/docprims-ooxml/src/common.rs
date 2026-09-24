@@ -179,9 +179,7 @@ mod tests {
 ///
 /// Handles predefined XML entities (lt, gt, amp, apos, quot) and numeric
 /// character references (&#NNN; or &#xHHH;).
-pub fn resolve_entity(entity: &[u8]) -> Option<&'static str> {
-    let name = std::str::from_utf8(entity).ok()?;
-
+pub fn resolve_entity(name: &str) -> Option<&'static str> {
     // Try predefined entities first
     if let Some(resolved) = resolve_xml_entity(name) {
         return Some(resolved);

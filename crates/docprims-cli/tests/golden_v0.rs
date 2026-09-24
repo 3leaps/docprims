@@ -1,7 +1,6 @@
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use docprims_core::{DocprimsExtract, ExtractLimits};
-use jsonschema::Resource;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
@@ -29,22 +28,26 @@ fn v0_validator() -> jsonschema::Validator {
     ))
     .unwrap();
 
-    jsonschema::draft202012::options()
-        .with_resources(
-            [
-                (
-                    "https://schemas.3leaps.dev/docprims/extract/v0/docprims-block.schema.json",
-                    Resource::from_contents(block_schema).unwrap(),
-                ),
-                (
-                    "https://schemas.3leaps.dev/docprims/extract/v0/docprims-location.schema.json",
-                    Resource::from_contents(loc_schema).unwrap(),
-                ),
-            ]
-            .into_iter(),
-        )
-        .build(&root_schema)
-        .unwrap()
+    {
+        let registry = jsonschema::Registry::new()
+            .add(
+                "https://schemas.3leaps.dev/docprims/extract/v0/docprims-block.schema.json",
+                block_schema,
+            )
+            .unwrap()
+            .add(
+                "https://schemas.3leaps.dev/docprims/extract/v0/docprims-location.schema.json",
+                loc_schema,
+            )
+            .unwrap()
+            .prepare()
+            .unwrap();
+        jsonschema::draft202012::options()
+            .offline()
+            .with_registry(&registry)
+            .build(&root_schema)
+            .unwrap()
+    }
 }
 
 fn read_text_fixture(path: &str) -> String {

@@ -197,7 +197,6 @@ pub fn extract_pptx_v0_reader<R: Read + std::io::Seek>(
 #[cfg(test)]
 pub(crate) mod test_support {
     use docprims_core::DocprimsExtract;
-    use jsonschema::Resource;
     use std::io::{Cursor, Write};
     use zip::write::SimpleFileOptions;
 
@@ -217,20 +216,26 @@ pub(crate) mod test_support {
         ))
         .unwrap();
 
-        let validator = jsonschema::draft202012::options()
-            .with_resources([
-                (
+        let validator = {
+            let registry = jsonschema::Registry::new()
+                .add(
                     "https://schemas.3leaps.dev/docprims/extract/v0/docprims-block.schema.json",
-                    Resource::from_contents(block_schema).unwrap(),
-                ),
-                (
+                    block_schema,
+                )
+                .unwrap()
+                .add(
                     "https://schemas.3leaps.dev/docprims/extract/v0/docprims-location.schema.json",
-                    Resource::from_contents(loc_schema).unwrap(),
-                ),
-            ]
-            .into_iter())
-            .build(&root_schema)
-            .unwrap();
+                    loc_schema,
+                )
+                .unwrap()
+                .prepare()
+                .unwrap();
+            jsonschema::draft202012::options()
+                .offline()
+                .with_registry(&registry)
+                .build(&root_schema)
+                .unwrap()
+        };
 
         let value = serde_json::to_value(extract).unwrap();
         let errors: Vec<_> = validator.iter_errors(&value).collect();

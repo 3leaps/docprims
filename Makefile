@@ -29,8 +29,8 @@ VERSION := $(shell cat VERSION 2>/dev/null || echo "dev")
 BIN_DIR := $(CURDIR)/bin
 
 # Pinned tool versions for reproducibility
-SFETCH_VERSION := latest
-GONEAT_VERSION ?= v0.5.1
+SFETCH_VERSION := v0.4.11
+GONEAT_VERSION ?= v0.6.0
 
 # Tool paths
 SFETCH = $(shell [ -x "$(BIN_DIR)/sfetch" ] && echo "$(BIN_DIR)/sfetch" || command -v sfetch 2>/dev/null)
@@ -38,6 +38,10 @@ GONEAT = $(shell command -v goneat 2>/dev/null)
 
 # Rust toolchain
 CARGO = cargo
+# Build against the committed Cargo.lock; fail rather than re-resolve.
+CARGO_LOCKED = --locked
+# Minimum supported Rust version (workspace rust-version); verified by `make msrv`.
+MSRV = 1.88.0
 
 # -----------------------------------------------------------------------------
 # Default and Help
@@ -82,7 +86,7 @@ help: ## Show available targets
 	@echo "  deny            Run cargo-deny license and advisory checks"
 	@echo "  audit           Run cargo-audit security scan"
 	@echo "  miri            Run Miri UB detection on unsafe code (nightly)"
-	@echo "  msrv            Verify build with MSRV (Rust 1.88.0)"
+	@echo "  msrv            Verify build and tests with MSRV (Rust $(MSRV))"
 	@echo "  npm-publish-prereqs-check Verify npm trusted publishing runtime guard"
 	@echo "  check-windows   Cross-check Windows targets (no SDK required)"
 	@echo ""
@@ -122,7 +126,7 @@ bootstrap: ## Install required tools (sfetch -> goneat -> tools)
 	@mkdir -p "$(BIN_DIR)"
 	@if [ ! -x "$(BIN_DIR)/sfetch" ] && ! command -v sfetch >/dev/null 2>&1; then \
 		echo "[..] Installing sfetch (trust anchor)..."; \
-		curl -fsSL https://github.com/3leaps/sfetch/releases/download/$(SFETCH_VERSION)/install-sfetch.sh | bash -s -- --dest "$(BIN_DIR)"; \
+		curl -fsSL https://github.com/3leaps/sfetch/releases/download/$(SFETCH_VERSION)/install-sfetch.sh | bash -s -- --dir "$(BIN_DIR)" --tag $(SFETCH_VERSION) --yes; \
 	else \
 		echo "[ok] sfetch already installed"; \
 	fi
@@ -206,12 +210,12 @@ tools: ## Verify external tools are available
 # Quality Gates
 # -----------------------------------------------------------------------------
 
-check: fmt-check lint test deny ## Run all quality checks
+check: fmt-check lint test deny audit ## Run all quality checks
 	@echo "[ok] All quality checks passed"
 
 test: ## Run test suite
 	@echo "Running tests..."
-	$(CARGO) test --workspace
+	$(CARGO) test --workspace $(CARGO_LOCKED)
 	@echo "[ok] Tests passed"
 
 fmt: ## Format code (goneat assess or cargo fmt)
@@ -234,15 +238,14 @@ fmt-check: ## Check formatting without modifying
 	fi
 	@echo "[ok] Formatting check passed"
 
-lint: ## Run linting (goneat assess or cargo clippy)
+lint: ## Run linting (goneat assess + cargo clippy)
 	@echo "Linting..."
 	@bash scripts/check-npm-trusted-publish-runtime.sh
 	@if command -v goneat >/dev/null 2>&1; then \
 		goneat assess --categories lint; \
-	else \
-		echo "[--] goneat not found, using cargo clippy"; \
-		$(CARGO) clippy --workspace --all-targets -- -D warnings; \
 	fi
+	@# goneat v0.6.0 does not run the Rust lint pass; clippy runs directly as the gap-filler.
+	$(CARGO) clippy --workspace --all-targets $(CARGO_LOCKED) -- -D warnings
 	@echo "[ok] Linting passed"
 
 npm-publish-prereqs-check: ## Verify npm trusted publishing runtime guard
@@ -251,15 +254,12 @@ npm-publish-prereqs-check: ## Verify npm trusted publishing runtime guard
 deny: ## Run cargo-deny license and advisory checks
 	@echo "Running cargo-deny..."
 	@if command -v cargo-deny >/dev/null 2>&1; then \
-		cargo-deny check bans licenses sources; \
+		cargo-deny --locked check; \
 	else \
 		echo "[!!] cargo-deny not found (run 'make bootstrap')"; \
 		exit 1; \
 	fi
 	@echo "[ok] cargo-deny passed"
-# NOTE: advisories check temporarily skipped due to cargo-deny CVSS 4.0 parsing issue
-# See: https://github.com/EmbarkStudios/cargo-deny/issues/804
-# Re-enable with `cargo-deny check` when fixed upstream
 
 audit: ## Run cargo-audit security scan
 	@echo "Running cargo-audit..."
@@ -283,14 +283,14 @@ miri: ## Run Miri to detect undefined behavior in unsafe code (requires nightly)
 	fi
 	@echo "[ok] Miri passed"
 
-msrv: ## Verify build with Minimum Supported Rust Version (1.88.0)
-	@echo "Checking MSRV (1.88.0)..."
-	@if rustup run 1.88.0 cargo --version >/dev/null 2>&1; then \
-		rustup run 1.88.0 cargo build --workspace && \
-		rustup run 1.88.0 cargo test --workspace; \
+msrv: ## Verify build and tests with the Minimum Supported Rust Version
+	@echo "Checking MSRV ($(MSRV))..."
+	@if rustup run $(MSRV) cargo --version >/dev/null 2>&1; then \
+		CARGO_TARGET_DIR=target/msrv rustup run $(MSRV) cargo build --workspace $(CARGO_LOCKED) && \
+		CARGO_TARGET_DIR=target/msrv rustup run $(MSRV) cargo test --workspace $(CARGO_LOCKED); \
 	else \
-		echo "[!!] Rust 1.88.0 not installed. Install with:"; \
-		echo "  rustup install 1.88.0"; \
+		echo "[!!] Rust $(MSRV) not installed. Install with:"; \
+		echo "  rustup install $(MSRV)"; \
 		exit 1; \
 	fi
 	@echo "[ok] MSRV check passed"
@@ -336,17 +336,17 @@ deps-check: ## Check dependencies for cooling violations
 
 build: ## Build all crates (debug)
 	@echo "Building (debug)..."
-	$(CARGO) build --workspace
+	$(CARGO) build --workspace $(CARGO_LOCKED)
 	@echo "[ok] Build complete"
 
 build-release: ## Build all crates (release)
 	@echo "Building (release)..."
-	$(CARGO) build --workspace --release
+	$(CARGO) build --workspace --release $(CARGO_LOCKED)
 	@echo "[ok] Release build complete"
 
 build-ffi: cbindgen ## Build FFI library with C header
 	@echo "Building FFI library..."
-	$(CARGO) build --package docprims-ffi --release
+	$(CARGO) build --package docprims-ffi --release $(CARGO_LOCKED)
 	@echo "[ok] FFI build complete"
 	@echo "Library: target/release/libdocprims_ffi.*"
 	@echo "Header: ffi/docprims-ffi/docprims.h"
@@ -375,7 +375,7 @@ GO_BINDINGS_DIR := bindings/go/docprims
 
 build-local-go: cbindgen ## Build FFI for local Go development
 	@echo "Building FFI for local Go development..."
-	$(CARGO) build --release -p docprims-ffi
+	$(CARGO) build --release -p docprims-ffi $(CARGO_LOCKED)
 	@# Sync header and local static lib into Go module layout
 	@PLATFORM=""; \
 	UNAME_S="$$(uname -s)"; \

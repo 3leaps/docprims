@@ -22,15 +22,12 @@ pub fn extract(content: &str) -> Result<ExtractedText> {
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Text(e)) => {
-                let decoded = e
-                    .decode()
-                    .map_err(|e| DocprimsError::Parse(format!("XML decode error: {}", e)))?;
+                let decoded = e.into_inner();
                 current_part.push_str(&decoded);
             }
             Ok(Event::GeneralRef(e)) => {
                 // Resolve entity reference (e.g., "lt" -> "<", "amp" -> "&")
-                let entity_name = std::str::from_utf8(&e)
-                    .map_err(|e| DocprimsError::Parse(format!("Invalid entity encoding: {}", e)))?;
+                let entity_name: &str = &e;
 
                 if let Some(resolved) = resolve_xml_entity(entity_name) {
                     current_part.push_str(resolved);
@@ -43,8 +40,8 @@ pub fn extract(content: &str) -> Result<ExtractedText> {
                 // Unknown entities are silently dropped
             }
             Ok(Event::CData(e)) => {
-                let cdata_content = String::from_utf8_lossy(&e);
-                current_part.push_str(&cdata_content);
+                let cdata_content: &str = &e;
+                current_part.push_str(cdata_content);
             }
             Ok(Event::Start(_) | Event::End(_)) => {
                 // Element boundaries - flush current text part
@@ -94,14 +91,11 @@ pub fn extract_v0_str(
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Text(e)) => {
-                let decoded = e
-                    .decode()
-                    .map_err(|e| DocprimsError::Parse(format!("XML decode error: {}", e)))?;
+                let decoded = e.into_inner();
                 current_part.push_str(&decoded);
             }
             Ok(Event::GeneralRef(e)) => {
-                let entity_name = std::str::from_utf8(&e)
-                    .map_err(|e| DocprimsError::Parse(format!("Invalid entity encoding: {}", e)))?;
+                let entity_name: &str = &e;
 
                 if let Some(resolved) = resolve_xml_entity(entity_name) {
                     current_part.push_str(resolved);
@@ -112,8 +106,8 @@ pub fn extract_v0_str(
                 }
             }
             Ok(Event::CData(e)) => {
-                let cdata_content = String::from_utf8_lossy(&e);
-                current_part.push_str(&cdata_content);
+                let cdata_content: &str = &e;
+                current_part.push_str(cdata_content);
             }
             Ok(Event::Start(_) | Event::End(_)) => {
                 let trimmed = current_part.trim();

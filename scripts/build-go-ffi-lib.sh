@@ -35,7 +35,7 @@ esac
 echo "[docprims] building FFI static lib for $PLATFORM"
 
 make cbindgen
-cargo build --release -p docprims-ffi
+cargo build --release -p docprims-ffi --locked
 
 mkdir -p "bindings/go/docprims/include"
 cp "ffi/docprims-ffi/docprims.h" "bindings/go/docprims/include/docprims.h"

@@ -7,14 +7,16 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
       - name: Install cargo-deny
-        run: cargo install cargo-deny@0.18.3 --locked
+        run: cargo install cargo-deny@0.20.2 --locked
+      - name: Install cargo-audit
+        run: cargo install cargo-audit@0.22.2 --locked
       - name: Install cbindgen
-        run: cargo install cbindgen --locked
+        run: cargo install cbindgen@0.29.4 --locked
       - name: Quality gates
         run: make check
       - name: Verify generated C header is up to date
@@ -22,11 +24,20 @@ jobs:
           make cbindgen
           git diff --exit-code ffi/docprims-ffi/docprims.h
           diff -u ffi/docprims-ffi/docprims.h bindings/go/docprims/include/docprims.h
+  msrv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.88.0
+      - name: Build and test on MSRV
+        run: make msrv
   test-go-vendored:
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.22.x"
       - name: Run Go tests (vendored libs)
