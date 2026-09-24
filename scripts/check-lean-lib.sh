@@ -55,4 +55,13 @@ check "ooxml only: no text-format or CLI dependencies" docprims-text pulldown-cm
 check "markdown only: no HTML, XML, OOXML or CLI dependencies" \
   scraper quick-xml docprims-ooxml zip "${CLI_DEPS[@]}" -- --no-default-features --features markdown
 
+# A minimal build must also compile and pass its own tests (including the
+# error for formats that are not enabled).
+if cargo test -q -p docprims --no-default-features --features markdown --lib --locked >/dev/null 2>&1; then
+  echo "[ok] markdown-only build tests pass"
+else
+  echo "[!!] markdown-only build tests failed (run: cargo test -p docprims --no-default-features --features markdown --lib)"
+  fail=1
+fi
+
 exit "$fail"

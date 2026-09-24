@@ -60,7 +60,7 @@ fn read_b64_fixture(path: &str) -> Vec<u8> {
 }
 
 fn repo_root() -> PathBuf {
-    // CARGO_MANIFEST_DIR points at crates/docprims-cli; repo root is two levels up.
+    // CARGO_MANIFEST_DIR points at crates/docprims; repo root is two levels up.
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 

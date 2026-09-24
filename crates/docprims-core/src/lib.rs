@@ -4,7 +4,12 @@
 //!
 //! This crate provides the shared foundation used by format-specific extractors
 //! (docprims-text, docprims-ooxml, etc.).
+//!
+//! Most users should depend on the [`docprims`](https://docs.rs/docprims)
+//! crate, which is the supported entry point. This crate's API carries no
+//! stability promise beyond what `docprims` re-exports.
 
+#[doc(hidden)]
 pub mod xml;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
@@ -168,23 +173,19 @@ pub trait Extractor {
     fn extensions(&self) -> &'static [&'static str];
 }
 
-/// Options for text extraction.
-#[derive(Debug, Clone, Default)]
-pub struct ExtractOptions {
-    /// Include document metadata in output
-    pub include_metadata: bool,
-
-    /// Maximum output size in bytes (0 = unlimited)
-    pub max_output_size: usize,
-}
-
 /// Resource limits for extraction.
 ///
 /// These defaults are intentionally conservative since docprims parses untrusted input.
+/// Every limit is literal: `0` means zero, not "unlimited". A limit of `0` for
+/// output bytes or blocks yields empty, `partial` output.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct ExtractLimits {
+    /// Largest input accepted, in bytes; larger input is rejected before parsing.
     pub max_input_bytes: usize,
+    /// Largest document text emitted, in bytes; output is truncated at a
+    /// character boundary and marked `partial`.
     pub max_output_bytes: usize,
+    /// Most blocks emitted; further blocks are dropped and output is marked `partial`.
     pub max_blocks: usize,
 }
 

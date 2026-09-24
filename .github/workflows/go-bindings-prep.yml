@@ -34,7 +34,8 @@ jobs:
     name: Build FFI (Linux)
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/fulmenhq/goneat-tools-runner-glibc@sha256:afcffa00283c765928dfef40966c282f2ca190653cf4443f634cb8f67c1d51ab # v0.5.6
+      # goneat-tools-runner-glibc v0.5.6
+      image: ghcr.io/fulmenhq/goneat-tools-runner-glibc@sha256:afcffa00283c765928dfef40966c282f2ca190653cf4443f634cb8f67c1d51ab
       options: --user root
     needs: validate
     strategy:
@@ -177,7 +178,8 @@ jobs:
     name: Generate C Header
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/fulmenhq/goneat-tools-runner-glibc@sha256:afcffa00283c765928dfef40966c282f2ca190653cf4443f634cb8f67c1d51ab # v0.5.6
+      # goneat-tools-runner-glibc v0.5.6
+      image: ghcr.io/fulmenhq/goneat-tools-runner-glibc@sha256:afcffa00283c765928dfef40966c282f2ca190653cf4443f634cb8f67c1d51ab
       options: --user root
     needs: validate
     steps:

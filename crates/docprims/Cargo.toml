@@ -62,6 +62,10 @@ required-features = ["text", "ooxml"]
 name = "char_refs"
 required-features = ["text", "ooxml"]
 
+[[test]]
+name = "dispatch"
+required-features = ["text", "ooxml"]
+
 [[bin]]
 name = "docprims"
 path = "src/main.rs"

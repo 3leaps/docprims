@@ -10,6 +10,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`docprims` crate**: The library's entry point. `extract_file` and `extract_bytes` return the `extract/v0` structure and choose the parser from the path or source URI extension, or from an explicit `Format` (`extract_file_as`, `extract_bytes_as`); content is never inspected to choose a parser. Each format is a feature (`markdown`, `html`, `xml`, `docx`, `xlsx`, `pptx`, grouped as `text` and `ooxml`; all enabled by default). `docprims-core`, `docprims-text` and `docprims-ooxml` carry no stability promise beyond what `docprims` re-exports.
+
+### Changed
+
+- **CLI**: The `docprims` command-line tool is now built from the `docprims` crate with the `cli` feature (`cargo install docprims --features cli`). The binary name, commands and output are unchanged.
+- **C, Go and TypeScript bindings** extract through the `docprims` crate; results and error codes are unchanged.
+
+### Removed
+
+- **BREAKING: `--timeout-ms` and `ExtractOptions::timeout_ms`**: The extraction timeout option was accepted but never applied, and is removed. Passing `--timeout-ms` to the CLI is now a usage error.
+- **BREAKING: `ExtractOptions`**: Removed from `docprims-core`; none of its fields were used. Limits are set with `ExtractLimits`.
+- **BREAKING: `docprims-cli` crate**: Replaced by the `docprims` crate's `cli` feature.
+- **BREAKING: `docprims_ooxml::common`**: No longer public.
+
 ### Fixed
 
 - **Extracted text character set**: Extracted text from every format (Markdown, HTML, XML, DOCX, XLSX, PPTX) contains only XML 1.0 characters, excluding DEL and C1 controls (U+007F–U+009F); other characters are dropped before block byte ranges are computed. Markdown and HTML keep their parsers' U+FFFD replacement for NUL. Numeric character references (`&#233;`, `&#x1F600;`) resolve under the same rule, including in DOCX, XLSX and PPTX, which previously dropped all numeric references. Extracted text changes for documents that contain such characters or references.

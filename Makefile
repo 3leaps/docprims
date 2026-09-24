@@ -212,7 +212,7 @@ tools: ## Verify external tools are available
 # Quality Gates
 # -----------------------------------------------------------------------------
 
-check: fmt-check lint test lean-lib-check deny audit ## Run all quality checks
+check: fmt-check lint test lean-lib-check doc-check deny audit ## Run all quality checks
 	@echo "[ok] All quality checks passed"
 
 test: ## Run test suite
@@ -252,6 +252,11 @@ lint: ## Run linting (goneat assess + cargo clippy)
 
 npm-publish-prereqs-check: ## Verify npm trusted publishing runtime guard
 	@bash scripts/check-npm-trusted-publish-runtime.sh
+
+doc-check: ## Build docs for the published crates as docs.rs does, failing on warnings
+	RUSTDOCFLAGS="--cfg docsrs -D warnings" $(CARGO) doc --no-deps $(CARGO_LOCKED) -p docprims --features text,ooxml
+	RUSTDOCFLAGS="--cfg docsrs -D warnings" $(CARGO) doc --no-deps $(CARGO_LOCKED) -p docprims-core -p docprims-text -p docprims-ooxml
+	@echo "[ok] Documentation builds cleanly"
 
 lean-lib-check: ## Verify library builds of the docprims crate pull no CLI or unused format dependencies
 	@bash scripts/check-lean-lib.sh

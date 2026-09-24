@@ -209,6 +209,19 @@ fn sniff_xml_decl_encoding(bytes: &[u8]) -> Option<String> {
     Some(after_quote[..end].trim().to_string())
 }
 
+/// Resolve an XML entity reference to its string value.
+///
+/// Handles predefined XML entities (lt, gt, amp, apos, quot) and numeric
+/// character references (&#NNN; or &#xHHH;). A numeric reference resolves
+/// only when it names an XML 1.0 `Char` (see `docprims_core::xml`); other
+/// numeric references and unknown named entities resolve to `None`.
+pub fn resolve_entity(name: &str) -> Option<Cow<'static, str>> {
+    if let Some(resolved) = resolve_xml_entity(name) {
+        return Some(Cow::Borrowed(resolved));
+    }
+    docprims_core::xml::resolve_char_ref(name).map(|c| Cow::Owned(c.to_string()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -435,36 +448,4 @@ mod tests {
         let out = decode_xml_bytes(&bytes).unwrap();
         assert_eq!(out, "<a/>");
     }
-}
-
-/// Resolve an XML entity reference to its string value.
-///
-/// Handles predefined XML entities (lt, gt, amp, apos, quot) and numeric
-/// character references (&#NNN; or &#xHHH;). A numeric reference resolves
-/// only when it names an XML 1.0 `Char` (see `docprims_core::xml`); other
-/// numeric references and unknown named entities resolve to `None`.
-pub fn resolve_entity(name: &str) -> Option<Cow<'static, str>> {
-    if let Some(resolved) = resolve_xml_entity(name) {
-        return Some(Cow::Borrowed(resolved));
-    }
-    docprims_core::xml::resolve_char_ref(name).map(|c| Cow::Owned(c.to_string()))
-}
-
-/// OOXML namespace constants.
-pub mod ns {
-    /// Word processing namespace
-    pub const WORDPROCESSING: &str = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
-
-    /// Spreadsheet namespace
-    pub const SPREADSHEET: &str = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-
-    /// Presentation namespace
-    pub const PRESENTATION: &str = "http://schemas.openxmlformats.org/presentationml/2006/main";
-
-    /// Drawing namespace
-    pub const DRAWING: &str = "http://schemas.openxmlformats.org/drawingml/2006/main";
-
-    /// Relationships namespace
-    pub const RELATIONSHIPS: &str =
-        "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 }

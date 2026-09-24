@@ -2,6 +2,10 @@
 //!
 //! Text-based format extraction for docprims.
 //!
+//! Most users should depend on the [`docprims`](https://docs.rs/docprims)
+//! crate, which is the supported entry point. This crate's API carries no
+//! stability promise beyond what `docprims` re-exports.
+//!
 //! This crate extracts text from:
 //! - Markdown files
 //! - HTML documents

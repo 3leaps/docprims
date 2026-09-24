@@ -25,13 +25,35 @@
 //! | `cli` | all formats, plus the `docprims` binary |
 //!
 //! Extracting a format whose feature is disabled returns
-//! [`DocprimsError::UnsupportedFormat`].
+//! [`DocprimsError::UnsupportedFormat`], naming the feature to enable.
+//!
+//! # Choosing the parser
+//!
+//! The format comes from the caller: the extension of the path or source URI
+//! ([`extract_file`], [`extract_bytes`]) or an explicit [`Format`]
+//! ([`extract_file_as`], [`extract_bytes_as`]). docprims never inspects the
+//! content to pick a different parser. Input that does not match its declared
+//! format fails in that format's parser, typically with
+//! [`DocprimsError::Malformed`].
+//!
+//! # Command-line tool
+//!
+//! The `docprims` binary is built with the `cli` feature:
+//!
+//! ```text
+//! cargo install docprims --features cli
+//! ```
+//!
+//! Without `--features cli`, `cargo install docprims` fails because the binary
+//! requires that feature.
 //!
 //! This crate is the supported entry point. The `docprims-core`,
 //! `docprims-text` and `docprims-ooxml` crates it builds on carry no stability
 //! promise beyond what is re-exported here.
-
-#![cfg_attr(docsrs, feature(doc_cfg))]
+//!
+//! The re-exported types keep their `Docprims` prefix (`DocprimsExtract`,
+//! `DocprimsBlock`, ...) on purpose: the same names are used by the
+//! `extract/v0` JSON schema and by the C, Go and TypeScript bindings.
 
 use std::path::Path;
 
@@ -130,7 +152,7 @@ fn format_for(path: &Path) -> Result<Format> {
 #[allow(dead_code)] // unused when every format feature is enabled
 fn disabled(format: Format) -> DocprimsError {
     DocprimsError::UnsupportedFormat(format!(
-        "{} (docprims built without the `{}` feature)",
+        "{} (docprims was built without the `{}` feature)",
         format.name(),
         format.name()
     ))
@@ -247,4 +269,45 @@ pub fn extract_bytes_as(
 fn utf8(data: &[u8], format: Format) -> Result<&str> {
     std::str::from_utf8(data)
         .map_err(|_| DocprimsError::Malformed(format!("non-utf8 {} input", format.name())))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extension_mapping_is_case_insensitive_and_complete() {
+        for format in Format::ALL {
+            assert_eq!(
+                Format::from_extension(format.name()),
+                Some(format),
+                "{format:?}"
+            );
+        }
+        assert_eq!(Format::from_extension("MD"), Some(Format::Markdown));
+        assert_eq!(Format::from_extension("Htm"), Some(Format::Html));
+        assert_eq!(Format::from_path("a/b/report.DOCX"), Some(Format::Docx));
+        assert_eq!(Format::from_path("noext"), None);
+        assert_eq!(Format::from_path("archive.zip"), None);
+    }
+
+    #[test]
+    fn unknown_extension_is_unknown_format() {
+        match extract_bytes("mem://file.bin", b"x", ExtractLimits::default()) {
+            Err(DocprimsError::UnknownFormat(ext)) => assert_eq!(ext, "bin"),
+            other => panic!("expected UnknownFormat, got {other:?}"),
+        }
+    }
+
+    #[cfg(not(feature = "docx"))]
+    #[test]
+    fn disabled_format_names_its_feature() {
+        assert!(!Format::Docx.is_enabled());
+        match extract_bytes("mem://file.docx", b"PK", ExtractLimits::default()) {
+            Err(DocprimsError::UnsupportedFormat(msg)) => {
+                assert!(msg.contains("`docx` feature"), "{msg}")
+            }
+            other => panic!("expected UnsupportedFormat, got {other:?}"),
+        }
+    }
 }

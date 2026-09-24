@@ -91,7 +91,8 @@ jobs:
     name: Build Linux
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/fulmenhq/goneat-tools-runner-glibc@sha256:afcffa00283c765928dfef40966c282f2ca190653cf4443f634cb8f67c1d51ab # v0.5.6
+      # goneat-tools-runner-glibc v0.5.6
+      image: ghcr.io/fulmenhq/goneat-tools-runner-glibc@sha256:afcffa00283c765928dfef40966c282f2ca190653cf4443f634cb8f67c1d51ab
       options: --user root
     needs: validate-version
     strategy:
@@ -114,9 +115,9 @@ jobs:
       - name: Build CLI
         run: |
           if [ -n "${{ matrix.glibc }}" ]; then
-            cargo zigbuild --release --target ${{ matrix.target }}.${{ matrix.glibc }} -p docprims-cli
+            cargo zigbuild --release --target ${{ matrix.target }}.${{ matrix.glibc }} -p docprims --features cli
           else
-            cargo zigbuild --release --target ${{ matrix.target }} -p docprims-cli
+            cargo zigbuild --release --target ${{ matrix.target }} -p docprims --features cli
           fi
       - name: Package CLI
         shell: bash
@@ -164,7 +165,7 @@ jobs:
         with:
           targets: aarch64-apple-darwin
       - name: Build CLI
-        run: cargo build --release --target aarch64-apple-darwin -p docprims-cli --locked
+        run: cargo build --release --target aarch64-apple-darwin -p docprims --features cli --locked
       - name: Package CLI
         run: |
           mkdir -p dist/cli
@@ -194,7 +195,7 @@ jobs:
           path-type: inherit
       - name: Build CLI (GNU target)
         shell: msys2 {0}
-        run: cargo build --release --target x86_64-pc-windows-gnu -p docprims-cli --locked
+        run: cargo build --release --target x86_64-pc-windows-gnu -p docprims --features cli --locked
       - name: Package CLI
         shell: bash
         run: |
@@ -211,7 +212,8 @@ jobs:
     name: Generate C Header
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/fulmenhq/goneat-tools-runner-glibc@sha256:afcffa00283c765928dfef40966c282f2ca190653cf4443f634cb8f67c1d51ab # v0.5.6
+      # goneat-tools-runner-glibc v0.5.6
+      image: ghcr.io/fulmenhq/goneat-tools-runner-glibc@sha256:afcffa00283c765928dfef40966c282f2ca190653cf4443f634cb8f67c1d51ab
       options: --user root
     needs: validate-version
     steps:

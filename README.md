@@ -102,12 +102,34 @@ From a consumer project using `file:` protocol:
 }
 ```
 
+### Rust library
+
+```toml
+[dependencies]
+docprims = "0.2"
+```
+
+All formats are enabled by default. To build only what you need, disable
+default features and pick formats (`markdown`, `html`, `xml`, `docx`, `xlsx`,
+`pptx`) or groups (`text`, `ooxml`):
+
+```toml
+docprims = { version = "0.2", default-features = false, features = ["markdown", "docx"] }
+```
+
 ### CLI
 
-From the repository root:
+The CLI is behind the `cli` feature:
 
 ```bash
-cargo install --path crates/docprims-cli
+cargo install docprims --features cli
+```
+
+`cargo install docprims` without `--features cli` fails, because the binary
+requires that feature. From a repository checkout:
+
+```bash
+cargo install --path crates/docprims --features cli
 ```
 
 ## Usage
@@ -115,14 +137,24 @@ cargo install --path crates/docprims-cli
 ### Rust
 
 ```rust
-use docprims_ooxml::extract_docx;
+use docprims::ExtractLimits;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let text = extract_docx("document.docx")?;
-    println!("{}", text.content);
+fn main() -> Result<(), docprims::DocprimsError> {
+    let extract = docprims::extract_file("document.docx", ExtractLimits::default())?;
+    println!("{}", extract.document.text);
+    for block in &extract.document.blocks {
+        let range = &block.doc_text_range;
+        println!("{} [{}..{}]", block.kind, range.start_byte, range.end_byte);
+    }
     Ok(())
 }
 ```
+
+The format is chosen from the file extension (or an explicit `docprims::Format`
+with `extract_file_as` / `extract_bytes_as`); docprims does not inspect content
+to pick a parser. `docprims` is the supported entry point; the
+`docprims-core`, `docprims-text` and `docprims-ooxml` crates carry no stability
+promise beyond what it re-exports.
 
 ### CLI
 
@@ -142,10 +174,10 @@ docprims extract report.docx slides.pptx data.xlsx notes.md
 ```
 docprims/
 ├── crates/
-│   ├── docprims-core/    # Shared types, traits, errors
+│   ├── docprims/         # Library entry point; CLI behind the `cli` feature
+│   ├── docprims-core/    # Shared types, errors
 │   ├── docprims-text/    # Markdown, HTML, XML
-│   ├── docprims-ooxml/   # DOCX, XLSX, PPTX
-│   └── docprims-cli/     # CLI binary
+│   └── docprims-ooxml/   # DOCX, XLSX, PPTX
 ├── ffi/
 │   └── docprims-ffi/     # C-ABI for language bindings
 └── bindings/

@@ -2,6 +2,10 @@
 //!
 //! Office Open XML (OOXML) text extraction for docprims.
 //!
+//! Most users should depend on the [`docprims`](https://docs.rs/docprims)
+//! crate, which is the supported entry point. This crate's API carries no
+//! stability promise beyond what `docprims` re-exports.
+//!
 //! This crate extracts text from:
 //! - DOCX (Word documents)
 //! - XLSX (Excel spreadsheets)
@@ -31,7 +35,7 @@ use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::Path;
 
-pub mod common;
+pub(crate) mod common;
 
 #[cfg(feature = "docx")]
 pub mod docx;

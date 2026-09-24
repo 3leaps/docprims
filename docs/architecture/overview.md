@@ -51,7 +51,7 @@ flowchart LR
     Text[docprims-text]
     OOXML[docprims-ooxml]
     FFI[docprims-ffi]
-    CLIBin[docprims-cli]
+    CLIBin[docprims]
   end
 
   subgraph Downstream[Example downstream systems]
@@ -84,7 +84,7 @@ docprims/
 │   ├── docprims-core/      # Shared types, traits, errors, structured model
 │   ├── docprims-text/      # Markdown, HTML, XML extraction
 │   ├── docprims-ooxml/     # DOCX, XLSX, PPTX extraction
-│   └── docprims-cli/       # CLI binary
+│   └── docprims/           # Library entry point; CLI (`cli` feature)
 ├── ffi/
 │   └── docprims-ffi/       # C-ABI for language bindings
 ├── bindings/
@@ -118,7 +118,9 @@ docprims/
 - ZIP archive handling with security controls
 - XML namespace handling for Office namespaces
 
-**docprims-cli**:
+**docprims** (library entry point):
+- `extract_file` / `extract_bytes` with format dispatch by extension or explicit `Format`; no content sniffing
+- Per-format features; the `cli` feature adds the `docprims` binary
 - `docprims extract <file>` - unified extraction command
 - Format auto-detection
 - JSON and plain text output modes

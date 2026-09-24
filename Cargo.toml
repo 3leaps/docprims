@@ -18,6 +18,7 @@ repository = "https://github.com/3leaps/docprims"
 authors = ["3leaps Architecture Council"]
 
 [workspace.dependencies]
+docprims = { path = "crates/docprims" }
 docprims-core = { path = "crates/docprims-core" }
 docprims-text = { path = "crates/docprims-text", default-features = false }
 docprims-ooxml = { path = "crates/docprims-ooxml", default-features = false }

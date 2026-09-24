@@ -378,9 +378,8 @@ name = "docprims-ffi"
 version = "0.1.5"
 dependencies = [
  "base64",
+ "docprims",
  "docprims-core",
- "docprims-ooxml",
- "docprims-text",
  "serde",
  "serde_json",
 ]
@@ -413,9 +412,8 @@ dependencies = [
 name = "docprims-ts-napi"
 version = "0.1.5"
 dependencies = [
+ "docprims",
  "docprims-core",
- "docprims-ooxml",
- "docprims-text",
  "napi",
  "napi-build",
  "napi-derive",
