@@ -175,9 +175,6 @@ pub struct ExtractOptions {
 
     /// Maximum output size in bytes (0 = unlimited)
     pub max_output_size: usize,
-
-    /// Timeout for extraction in milliseconds (0 = unlimited)
-    pub timeout_ms: u64,
 }
 
 /// Resource limits for extraction.

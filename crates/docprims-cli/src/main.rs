@@ -91,10 +91,6 @@ struct ExtractArgs {
     /// Maximum input file size in bytes.
     #[arg(long, value_name = "BYTES", default_value = "104857600")]
     max_input_bytes: usize,
-
-    /// Extraction timeout in milliseconds.
-    #[arg(long, value_name = "MS", default_value = "30000")]
-    timeout_ms: u64,
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]

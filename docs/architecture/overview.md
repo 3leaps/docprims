@@ -296,11 +296,11 @@ docprims is classified as **security-sensitive** because it parses untrusted inp
 
 | Threat | Mitigation |
 |--------|------------|
-| Zip bombs | Decompression ratio limits, file count limits |
-| XML bombs (billion laughs) | Entity expansion disabled, depth limits |
+| Zip bombs | Per-part and per-archive decompressed-size limits (bytes actually read), file count limits |
+| XML bombs (billion laughs) | No DTD or custom entity expansion; iterative (non-recursive) parsing |
 | Path traversal | Archive path validation, no `..` allowed |
 | Memory exhaustion | `max_input_bytes`, `max_output_bytes` limits |
-| CPU exhaustion | `timeout_ms`, iteration limits |
+| CPU exhaustion | Linear-time parsing; input, output, block and decompression limits. No wall-clock timeout. |
 | Malformed input crashes | `Result<T, Error>` everywhere, no panics on bad input |
 
 ### Resource Limits (ExtractLimits)
