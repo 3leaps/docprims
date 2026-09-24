@@ -1,6 +1,6 @@
 //! PPTX (PowerPoint) text extraction.
 
-use crate::common::{open_archive, read_archive_file, resolve_entity};
+use crate::common::{open_archive, read_archive_file, resolve_entity, OoxmlArchive};
 use docprims_core::{
     DocprimsBlock, DocprimsByteRange, DocprimsDocument, DocprimsError, DocprimsExtract,
     DocprimsGenerator, DocprimsQuality, DocprimsSource, ExtractLimits, ExtractedText, Result,
@@ -156,7 +156,7 @@ pub fn extract_v0<R: Read + Seek>(
     ))
 }
 
-fn enumerate_slides<R: Read + Seek>(archive: &mut zip::ZipArchive<R>) -> Result<Vec<String>> {
+fn enumerate_slides<R: Read + Seek>(archive: &mut OoxmlArchive<R>) -> Result<Vec<String>> {
     let pres_xml = read_archive_file(archive, PRESENTATION_PATH)?
         .ok_or_else(|| DocprimsError::Malformed("Missing ppt/presentation.xml".to_string()))?;
     let rels_xml = read_archive_file(archive, PRESENTATION_RELS_PATH)?.ok_or_else(|| {

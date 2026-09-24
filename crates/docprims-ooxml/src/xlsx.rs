@@ -1,6 +1,6 @@
 //! XLSX (Excel) text extraction.
 
-use crate::common::{open_archive, read_archive_file, resolve_entity};
+use crate::common::{open_archive, read_archive_file, resolve_entity, OoxmlArchive};
 use docprims_core::{
     DocprimsBlock, DocprimsByteRange, DocprimsDocument, DocprimsError, DocprimsExtract,
     DocprimsGenerator, DocprimsQuality, DocprimsSource, ExtractLimits, ExtractedText, Result,
@@ -191,7 +191,7 @@ pub fn extract_v0<R: Read + Seek>(
     ))
 }
 
-fn enumerate_sheets<R: Read + Seek>(archive: &mut zip::ZipArchive<R>) -> Result<Vec<SheetInfo>> {
+fn enumerate_sheets<R: Read + Seek>(archive: &mut OoxmlArchive<R>) -> Result<Vec<SheetInfo>> {
     let workbook_xml = read_archive_file(archive, WORKBOOK_PATH)?
         .ok_or_else(|| DocprimsError::Malformed("Missing xl/workbook.xml".to_string()))?;
     let rels_xml = read_archive_file(archive, WORKBOOK_RELS_PATH)?.ok_or_else(|| {
