@@ -33,7 +33,7 @@ pub fn extract(content: &str) -> Result<ExtractedText> {
                     current_part.push_str(resolved);
                 } else if entity_name.starts_with('#') {
                     // Numeric character reference (&#NNN; or &#xHHH;)
-                    if let Some(ch) = parse_numeric_entity(entity_name) {
+                    if let Some(ch) = docprims_core::xml::resolve_char_ref(entity_name) {
                         current_part.push(ch);
                     }
                 }
@@ -100,7 +100,7 @@ pub fn extract_v0_str(
                 if let Some(resolved) = resolve_xml_entity(entity_name) {
                     current_part.push_str(resolved);
                 } else if entity_name.starts_with('#') {
-                    if let Some(ch) = parse_numeric_entity(entity_name) {
+                    if let Some(ch) = docprims_core::xml::resolve_char_ref(entity_name) {
                         current_part.push(ch);
                     }
                 }
@@ -223,16 +223,6 @@ pub fn extract_v0_str(
 }
 
 /// Parse a numeric character reference like "#65" or "#x41" to a char.
-fn parse_numeric_entity(entity: &str) -> Option<char> {
-    let s = entity.strip_prefix('#')?;
-    let code = if let Some(hex) = s.strip_prefix('x').or_else(|| s.strip_prefix('X')) {
-        u32::from_str_radix(hex, 16).ok()?
-    } else {
-        s.parse::<u32>().ok()?
-    };
-    char::from_u32(code)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

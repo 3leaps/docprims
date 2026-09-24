@@ -5,6 +5,7 @@
 //! This crate provides the shared foundation used by format-specific extractors
 //! (docprims-text, docprims-ooxml, etc.).
 
+pub mod xml;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use std::path::Path;

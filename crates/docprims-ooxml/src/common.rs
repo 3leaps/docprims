@@ -441,23 +441,13 @@ mod tests {
 ///
 /// Handles predefined XML entities (lt, gt, amp, apos, quot) and numeric
 /// character references (&#NNN; or &#xHHH;). A numeric reference resolves
-/// when it names a Unicode scalar value; surrogates, out-of-range values and
-/// malformed references resolve to `None`, as do unknown named entities.
+/// only when it names an XML 1.0 `Char` (see `docprims_core::xml`); other
+/// numeric references and unknown named entities resolve to `None`.
 pub fn resolve_entity(name: &str) -> Option<Cow<'static, str>> {
     if let Some(resolved) = resolve_xml_entity(name) {
         return Some(Cow::Borrowed(resolved));
     }
-    parse_numeric_entity(name).map(|c| Cow::Owned(c.to_string()))
-}
-
-fn parse_numeric_entity(entity: &str) -> Option<char> {
-    let s = entity.strip_prefix('#')?;
-    let code = if let Some(hex) = s.strip_prefix('x').or_else(|| s.strip_prefix('X')) {
-        u32::from_str_radix(hex, 16).ok()?
-    } else {
-        s.parse::<u32>().ok()?
-    };
-    char::from_u32(code)
+    docprims_core::xml::resolve_char_ref(name).map(|c| Cow::Owned(c.to_string()))
 }
 
 /// OOXML namespace constants.

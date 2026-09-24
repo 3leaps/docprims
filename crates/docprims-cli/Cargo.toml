@@ -32,3 +32,4 @@ assert_cmd = "2.0"
 predicates = "3.1"
 base64 = "0.23"
 jsonschema = { version = "0.57", default-features = false }
+zip = { workspace = true }
