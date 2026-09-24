@@ -1,8 +1,9 @@
-//! Extracted text contains only XML 1.0 characters, on every format.
+//! Extracted text contains only XML 1.0 characters and no DEL or C1 controls,
+//! on every format.
 //!
 //! Numeric character references resolve only if they name an XML 1.0 `Char`
 //! (shared by the XML and OOXML extractors). Separately, every extractor drops
-//! non-XML characters from its text before block byte ranges are computed, so
+//! non-XML characters, DEL and C1 controls from its text before block byte ranges are computed, so
 //! literal control bytes and HTML/Markdown references to them never reach the
 //! output and provenance ranges still slice the text exactly.
 
@@ -73,6 +74,11 @@ const CASES: &[(&str, &str)] = &[
     ("&#x10FFFF;", "\u{10ffff}"),
     ("&#x110000;", ""),
     ("&#233;", "\u{e9}"),
+    // XML Chars that are DEL or C1 controls: resolved, then dropped.
+    ("&#x7F;", ""),
+    ("&#x85;", ""),
+    ("&#x9B;", ""),
+    ("&#xA0;", "\u{a0}"),
 ];
 
 #[test]
@@ -96,7 +102,7 @@ fn literal_control_characters_are_dropped_on_xml_paths() {
 // which is an XML character and is kept); the final-text filter then drops
 // anything outside the XML character set.
 #[test]
-fn markdown_and_html_output_contains_only_xml_characters() {
+fn markdown_and_html_output_excludes_control_characters() {
     for (reference, expected) in [
         ("&#0;", "\u{fffd}"),
         ("&#1;", ""),
@@ -104,6 +110,8 @@ fn markdown_and_html_output_contains_only_xml_characters() {
         ("&#9;", "\t"),
         ("&#xFFFE;", ""),
         ("&#233;", "\u{e9}"),
+        ("&#x7F;", ""),
+        ("&#x81;", ""),
     ] {
         let body = format!("a{reference}b");
         let want = format!("a{expected}b");
@@ -114,8 +122,31 @@ fn markdown_and_html_output_contains_only_xml_characters() {
         );
         assert_eq!(via_html(&body).trim_end(), want, "html: {reference}");
     }
-    assert_eq!(via_markdown("a\u{1b}[31mred\n").trim_end(), "a[31mred");
-    assert_eq!(via_html("a\u{1b}[31mred").trim_end(), "a[31mred");
+    // HTML maps references in U+0080-U+009F to Windows-1252 characters where
+    // one is defined ("€", "…", "›"); Markdown does not, so they are C1
+    // controls there and are dropped. Either way no C1 control is emitted.
+    for (reference, html_expected) in [
+        ("&#x80;", "\u{20ac}"),
+        ("&#x85;", "\u{2026}"),
+        ("&#x9B;", "\u{203a}"),
+    ] {
+        let body = format!("a{reference}b");
+        assert_eq!(
+            via_markdown(&body).trim_end(),
+            "ab",
+            "markdown: {reference}"
+        );
+        assert_eq!(
+            via_html(&body).trim_end(),
+            format!("a{html_expected}b"),
+            "html: {reference}"
+        );
+    }
+    assert_eq!(
+        via_markdown("a\u{1b}[31mred\u{9b}0m\n").trim_end(),
+        "a[31mred0m"
+    );
+    assert_eq!(via_html("a\u{1b}[31mred\u{9b}0m").trim_end(), "a[31mred0m");
 }
 
 fn zip_parts(parts: &[(&str, &str)]) -> Vec<u8> {
@@ -133,8 +164,8 @@ fn zip_parts(parts: &[(&str, &str)]) -> Vec<u8> {
 fn assert_clean_and_consistent(label: &str, extract: &docprims_core::DocprimsExtract) {
     let doc = &extract.document.text;
     assert!(
-        doc.chars().all(docprims_core::xml::is_xml_char),
-        "{label}: non-XML char in {doc:?}"
+        doc.chars().all(docprims_core::xml::is_output_char),
+        "{label}: disallowed char in {doc:?}"
     );
     assert!(!extract.document.blocks.is_empty(), "{label}: no blocks");
     for block in &extract.document.blocks {
@@ -152,17 +183,19 @@ fn block_ranges_slice_filtered_text_on_every_format() {
     let l = ExtractLimits::default;
     // Each input has a clean block, a block with control bytes mid-text, and a
     // block made only of control bytes (which must vanish, not leave a gap).
-    let md = "first\n\nmid\u{1}dle \u{1b}[0m\n\n\u{7}\u{8}\n\nlast\n";
+    let md = "first\n\nmid\u{1}d\u{7f}l\u{85}\u{9b}e \u{1b}[0m\n\n\u{7}\u{8}\n\nlast\n";
     let e = docprims_text::markdown::extract_v0_str(md, "m.md", l()).unwrap();
     assert_clean_and_consistent("markdown", &e);
     assert_eq!(e.document.text, "first\nmiddle [0m\nlast");
 
-    let html = "<p>first</p><p>mid\u{1}dle <b>\u{1b}</b>bold</p><p>\u{7}</p><p>last</p>";
+    let html =
+        "<p>first</p><p>mid\u{1}d\u{7f}l\u{85}\u{9b}e <b>\u{1b}</b>bold</p><p>\u{7}</p><p>last</p>";
     let e = docprims_text::html::extract_v0_str(html, "h.html", l()).unwrap();
     assert_clean_and_consistent("html", &e);
     assert_eq!(e.document.text, "first\nmiddle bold\nlast");
 
-    let xml = "<r><a>first</a><b>mid\u{1}dle&#x1B;</b><c>\u{7}</c><d>last</d></r>";
+    let xml =
+        "<r><a>first</a><b>mid\u{1}d\u{7f}l\u{85}\u{9b}e&#x1B;</b><c>\u{7}</c><d>last</d></r>";
     let e = docprims_text::xml::extract_v0_str(xml, "x.xml", l()).unwrap();
     assert_clean_and_consistent("xml", &e);
     assert_eq!(e.document.text, "first middle last");
@@ -173,7 +206,7 @@ fn block_ranges_slice_filtered_text_on_every_format() {
         &format!(
             "<w:document {W_NS}><w:body>{}{}{}{}</w:body></w:document>",
             p("first"),
-            p("mid\u{1}dle "),
+            p("mid\u{1}d\u{7f}l\u{85}\u{9b}e "),
             p("\u{7}"),
             p("last")
         ),
@@ -198,7 +231,9 @@ fn block_ranges_slice_filtered_text_on_every_format() {
         ),
         (
             "xl/sharedStrings.xml",
-            &format!("<sst {S}><si><t>mid\u{1}dle</t></si><si><t>\u{7}</t></si></sst>"),
+            &format!(
+                "<sst {S}><si><t>mid\u{1}d\u{7f}l\u{85}\u{9b}e</t></si><si><t>\u{7}</t></si></sst>"
+            ),
         ),
         (
             "xl/worksheets/sheet1.xml",
@@ -216,7 +251,7 @@ fn block_ranges_slice_filtered_text_on_every_format() {
     let pptx = zip_parts(&[
         ("ppt/presentation.xml", &format!(r#"<p:presentation {P} {R}><p:sldIdLst><p:sldId id="256" r:id="rId1"/></p:sldIdLst></p:presentation>"#)),
         ("ppt/_rels/presentation.xml.rels", r#"<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide1.xml"/></Relationships>"#),
-        ("ppt/slides/slide1.xml", &format!("<p:sld {P}><p:cSld><p:spTree><p:sp><p:txBody>{}{}{}{}</p:txBody></p:sp></p:spTree></p:cSld></p:sld>", ap("first"), ap("mid\u{1}dle"), ap("\u{7}"), ap("last"))),
+        ("ppt/slides/slide1.xml", &format!("<p:sld {P}><p:cSld><p:spTree><p:sp><p:txBody>{}{}{}{}</p:txBody></p:sp></p:spTree></p:cSld></p:sld>", ap("first"), ap("mid\u{1}d\u{7f}l\u{85}\u{9b}e"), ap("\u{7}"), ap("last"))),
     ]);
     let e = docprims_ooxml::extract_pptx_v0_reader(Cursor::new(pptx), "p.pptx", l()).unwrap();
     assert_clean_and_consistent("pptx", &e);

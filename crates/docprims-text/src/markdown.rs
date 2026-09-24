@@ -112,7 +112,7 @@ pub fn extract_v0_str(
                  cur_text: &mut String| {
         if let Some(kind) = cur_kind.take() {
             // Filtering removes no whitespace, so re-trimming equals filtering first.
-            let t = docprims_core::xml::retain_xml_chars(cur_text.trim_end().to_string())
+            let t = docprims_core::xml::retain_output_chars(cur_text.trim_end().to_string())
                 .trim_end()
                 .to_string();
             cur_text.clear();

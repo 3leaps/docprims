@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **XML 1.0 characters only**: Extracted text from every format (Markdown, HTML, XML, DOCX, XLSX, PPTX) now contains only characters allowed by XML 1.0 (tab, line feed, carriage return, U+0020–U+D7FF, U+E000–U+FFFD, U+10000–U+10FFFF). Numeric character references (`&#233;`, `&#x1F600;`) resolve when they name such a character, including in DOCX, XLSX and PPTX, which previously dropped all numeric references. Other characters, whether written literally or as references (for example NUL, ESC and other control characters, U+FFFE, U+FFFF), are dropped before block byte ranges are computed. Extracted text changes for documents that contain such characters.
+- **Extracted text character set**: Extracted text from every format (Markdown, HTML, XML, DOCX, XLSX, PPTX) contains only XML 1.0 characters, excluding DEL and C1 controls (U+007F–U+009F); other characters are dropped before block byte ranges are computed. Markdown and HTML keep their parsers' U+FFFD replacement for NUL. Numeric character references (`&#233;`, `&#x1F600;`) resolve under the same rule, including in DOCX, XLSX and PPTX, which previously dropped all numeric references. Extracted text changes for documents that contain such characters or references.
 
 ## [0.1.5] - 2026-07-07
 

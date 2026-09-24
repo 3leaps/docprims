@@ -10,15 +10,24 @@ pub fn is_xml_char(c: char) -> bool {
         | '\u{10000}'..='\u{10FFFF}')
 }
 
-/// Remove every character that is not an XML 1.0 `Char`.
+/// Whether `c` may appear in extracted text: an XML 1.0 `Char` that is not
+/// DEL or a C1 control (U+007F–U+009F). XML 1.0 allows those but discourages
+/// them, and they act as terminal controls.
+pub fn is_output_char(c: char) -> bool {
+    is_xml_char(c) && !matches!(c, '\u{7F}'..='\u{9F}')
+}
+
+/// Remove every character for which [`is_output_char`] is false.
 ///
 /// Applied to extracted text before block byte ranges are computed, so the
-/// output of every extractor contains only XML 1.0 characters.
-pub fn retain_xml_chars(text: String) -> String {
-    if text.chars().all(is_xml_char) {
+/// output of every extractor contains no C0 controls other than tab, line
+/// feed and carriage return, no DEL, no C1 controls, and nothing outside the
+/// XML 1.0 character set.
+pub fn retain_output_chars(text: String) -> String {
+    if text.chars().all(is_output_char) {
         return text;
     }
-    text.chars().filter(|&c| is_xml_char(c)).collect()
+    text.chars().filter(|&c| is_output_char(c)).collect()
 }
 
 /// Resolve the body of a numeric character reference (`#233` or `#xE9`, i.e.
@@ -79,6 +88,21 @@ mod tests {
         for code in (0u32..0x20).filter(|c| ![0x9, 0xA, 0xD].contains(c)) {
             assert_eq!(resolve_char_ref(&format!("#{code}")), None, "#{code}");
         }
+    }
+
+    #[test]
+    fn output_chars_exclude_del_and_c1_but_keep_neighbours() {
+        for c in ['\u{7F}', '\u{80}', '\u{85}', '\u{9B}', '\u{9F}'] {
+            assert!(is_xml_char(c), "{c:?} is an XML Char");
+            assert!(!is_output_char(c), "{c:?}");
+        }
+        for c in ['\u{7E}', '\u{A0}', '\t', '\n', '\r', 'é'] {
+            assert!(is_output_char(c), "{c:?}");
+        }
+        assert_eq!(
+            retain_output_chars("a\u{7f}b\u{9b}31mc\u{1b}d".into()),
+            "ab31mcd"
+        );
     }
 
     #[test]

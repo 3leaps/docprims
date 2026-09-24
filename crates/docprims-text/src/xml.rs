@@ -110,7 +110,7 @@ pub fn extract_v0_str(
                 current_part.push_str(cdata_content);
             }
             Ok(Event::Start(_) | Event::End(_)) => {
-                let filtered = docprims_core::xml::retain_xml_chars(current_part.clone());
+                let filtered = docprims_core::xml::retain_output_chars(current_part.clone());
                 let trimmed = filtered.trim();
                 if !trimmed.is_empty() {
                     if raw_parts.len() < limits.max_blocks {
@@ -123,7 +123,7 @@ pub fn extract_v0_str(
                 current_part.clear();
             }
             Ok(Event::Eof) => {
-                let filtered = docprims_core::xml::retain_xml_chars(current_part.clone());
+                let filtered = docprims_core::xml::retain_output_chars(current_part.clone());
                 let trimmed = filtered.trim();
                 if !trimmed.is_empty() {
                     if raw_parts.len() < limits.max_blocks {
