@@ -186,6 +186,10 @@ docprims/
     └── python/           # Python binding
 ```
 
+Every binding returns the same `extract/v0` JSON structure. Its stability
+level, output guarantees and data-sensitivity rules are in
+[docs/standards/extract-contract-stability.md](docs/standards/extract-contract-stability.md).
+
 ## Development
 
 Project documentation conventions (what is canonical vs planning notes):

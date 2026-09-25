@@ -30,6 +30,7 @@ docprims is a Rust library (with CLI + FFI bindings) that extracts text from doc
 |-----------|-----------|-----------|
 | Defensive parsing | Untrusted input is the norm | ADR-0003 |
 | Schema-driven contracts | Consumers need stability guarantees | `schemas/v0/extract/` |
+| Output guarantees | Extracted text contains only XML 1.0 characters, excluding DEL and C1 controls (U+007F–U+009F); other characters are dropped. Markdown and HTML keep their parsers' U+FFFD replacement for NUL. | [extract/v0 contract](../standards/extract-contract-stability.md) |
 | Minimal core dependencies | Keep docprims-core embeddable | ADR-0002 |
 | CLI composability | Stdout purity for pipelines | ADR-0004 |
 | GPL-free license policy | Safe for commercial embedding | ADR-0001 |
@@ -263,7 +264,7 @@ flowchart TD
     ENC[Encoding validation]
   end
 
-  V --> D[Format Detection]
+  V --> D[Format Dispatch: extension or explicit format]
   D --> P{Format Parser}
 
   P -->|markdown| TM[docprims-text::markdown]
@@ -452,6 +453,8 @@ schemas/
 ```
 
 During alpha (`v0.x`), schemas live under `schemas/v0/`. Post-1.0, schemas will be versioned independently.
+
+`extract/v0` is classified **Evolving**; see [extract/v0 contract](../standards/extract-contract-stability.md) for its stability level, output guarantees and data sensitivity.
 
 ## Testing Strategy (Contract First)
 
