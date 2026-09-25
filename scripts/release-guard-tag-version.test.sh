@@ -68,6 +68,13 @@ git -C "$fixture" push -q --force origin refs/tags/v1.2.3
 run_guard DOCPRIMS_RELEASE_TAG=v1.2.3 \
   DOCPRIMS_REQUIRE_TAG=1 ./guard.sh >/dev/null
 
+# A detached commit past the tag fails even though the tag still equals main.
+printf 'detached\n' >"$fixture/detached"
+git -C "$fixture" add detached
+git -C "$fixture" commit -qm "detached"
+expect_fail run_guard DOCPRIMS_RELEASE_TAG=v1.2.3 \
+  DOCPRIMS_REQUIRE_TAG=1 ./guard.sh
+
 git -C "$fixture" checkout -q main
 printf 'next\n' >"$fixture/next"
 git -C "$fixture" add next
