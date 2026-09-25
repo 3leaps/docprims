@@ -60,8 +60,14 @@ for bad_names, bad_packages, bad_manifests in (
     (names, publishable("docprims-ts-napi"), manifests),
     (names, packages, {**manifests, "docprims-core": {"package": {"publish": False}}}),
     (names, packages, {**manifests, "docprims": {"package": {}}}),
-    (["docprimsx"] + names[1:], packages, manifests),
-    ([], packages, manifests),
+    # A foreign crate, even if consistently listed and publishable.
+    (
+        names + ["otherlib"],
+        packages + [{"name": "otherlib", "publish": None, "dependencies": []}],
+        {**manifests, "otherlib": {"package": {"publish": True}}},
+    ),
+    # An empty plan, even when no crate is publishable.
+    ([], [{**p, "publish": []} for p in packages], manifests),
 ):
     try:
         module.validate(bad_packages, bad_names, bad_manifests)
