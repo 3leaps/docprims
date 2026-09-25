@@ -10,7 +10,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.5"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.88.0"
 license = "MIT OR Apache-2.0"
@@ -20,10 +20,10 @@ authors = ["3leaps Architecture Council"]
 publish = false
 
 [workspace.dependencies]
-docprims = { path = "crates/docprims" }
-docprims-core = { path = "crates/docprims-core" }
-docprims-text = { path = "crates/docprims-text", default-features = false }
-docprims-ooxml = { path = "crates/docprims-ooxml", default-features = false }
+docprims = { version = "0.2.0", path = "crates/docprims" }
+docprims-core = { version = "0.2.0", path = "crates/docprims-core" }
+docprims-text = { version = "0.2.0", path = "crates/docprims-text", default-features = false }
+docprims-ooxml = { version = "0.2.0", path = "crates/docprims-ooxml", default-features = false }
 
 # Fulmen Ecosystem
 rsfulmen = { version = "=0.2.0", default-features = false, features = ["foundry-core"] }

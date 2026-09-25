@@ -6,47 +6,29 @@
 
 ---
 
-## v0.1.5 - 2026-07-07
+## v0.2.0 — 2026-09-25
 
-**Status:** Patch Release (runtime floors + repository guidance)
+**Status:** Minor Release (library entry point, extraction fixes, dependency refresh)
 
-Refreshes package runtime floors and repository guidance before the next coordinated dependency modernization pass.
+Adds the `docprims` crate as the library's entry point, fixes extraction edge cases, and refreshes dependencies and toolchains. Breaking for Rust users of the subcrates; bindings keep their results and error codes.
 
 ### Highlights
 
-- **Rust MSRV**: Raised the workspace MSRV to Rust 1.88.0.
-- **TypeScript Node floor**: `@3leaps/docprims` now requires Node.js 22 or newer.
-- **Trusted publishing guard**: npm publishing now hard-checks Node >=22.14.0 and npm >=11.5.1.
-- **TypeScript workflow alignment**: Binding CI, release validation, and N-API prebuild workflows validate on Node 22.
-- **Repository guidance cleanup**: Agent guidance, local-only planning conventions, and YAML linting configuration were refreshed.
+- **`docprims` crate**: One dependency for all formats, a feature per format; the parser is chosen by extension or an explicit `Format`, never by content.
+- **CLI**: `cargo install docprims --features cli`; binary name, commands and output are unchanged.
+- **Extracted text character set**: XML 1.0 characters only, excluding DEL and C1 controls, on every format; numeric character references resolve in DOCX, XLSX and PPTX.
+- **OOXML decompression limits**: Enforced on bytes actually read, per part (100 MiB) and per archive (400 MiB).
+- **Output limits**: No empty block or trailing separator when `max_output_bytes` truncates.
+- **Toolchains**: MSRV 1.88.0; Node.js 22+; the TypeScript binding builds with napi-rs 3 and TypeScript 7.
 
-### Runtime Floors
+### Breaking Changes
 
-v0.1.5 aligns the project with currently supported runtime floors:
+- `docprims-cli` crate removed (use the `docprims` crate's `cli` feature).
+- `--timeout-ms` / `ExtractOptions::timeout_ms` and `ExtractOptions` removed.
+- `docprims_ooxml::common` is private.
+- `DocprimsError`, `DocprimsQualityStatus` and `DocprimsContainerKind` are `#[non_exhaustive]`.
 
-| Component | Floor |
-|-----------|-------|
-| Rust | 1.88.0 |
-| TypeScript package | Node.js 22+ |
-| npm trusted publishing | Node.js >=22.14.0 and npm >=11.5.1 |
-
-The TypeScript package remains on TypeScript 5.x and napi-rs 2.x for this release. TypeScript 6.x and napi-rs 3.x are reserved for a later coordinated modernization pass.
-
-### Release Workflow Hardening
-
-The npm publish workflow now uses a dedicated runtime guard that fails fast if the publish runner is below the trusted-publishing floor. The same guard is available locally through:
-
-```bash
-make npm-publish-prereqs-check
-```
-
-`make lint` also runs this guard so workflow drift is caught during normal quality checks.
-
-### Documentation Updates
-
-- README CLI install guidance now uses `cargo install --path crates/docprims-cli` from a repo checkout.
-- Repository guidance now treats planning artifacts as local-only and non-canonical.
-- YAML linting configuration is explicit at repo root.
+See `docs/releases/v0.2.0.md` for usage and migration.
 
 ---
 
