@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING: `DocprimsError`, `DocprimsQualityStatus` and `DocprimsContainerKind` are `#[non_exhaustive]`**: Matches on them outside docprims need a wildcard arm. `DocprimsQualityStatus` implements `PartialEq` and `Eq`.
 - **CLI**: The `docprims` command-line tool is now built from the `docprims` crate with the `cli` feature (`cargo install docprims --features cli`). The binary name, commands and output are unchanged.
 - **C, Go and TypeScript bindings** extract through the `docprims` crate; results and error codes are unchanged.
 
@@ -29,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Extracted text character set**: Extracted text from every format (Markdown, HTML, XML, DOCX, XLSX, PPTX) contains only XML 1.0 characters, excluding DEL and C1 controls (U+007F–U+009F); other characters are dropped before block byte ranges are computed. Markdown and HTML keep their parsers' U+FFFD replacement for NUL. Numeric character references (`&#233;`, `&#x1F600;`) resolve under the same rule, including in DOCX, XLSX and PPTX, which previously dropped all numeric references. Extracted text changes for documents that contain such characters or references.
+- **OOXML decompression limits**: The decompressed size of DOCX, XLSX and PPTX parts is now bounded by the bytes actually read, not the size declared in the archive: 100 MiB per part and 400 MiB across all parts of one archive. Exceeding either limit is a `ResourceLimit` error.
+- **Output limits**: When `max_output_bytes` truncates extraction, the result no longer contains an empty block or a trailing separator.
 
 ## [0.1.5] - 2026-07-07
 
