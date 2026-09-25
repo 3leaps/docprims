@@ -37,23 +37,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -f docprims.*.node
+          rm -rf prebuilds
           mkdir -p prebuilds
 
           # glibc baseline (2.17) for broad compatibility
-          npx napi build --manifest-path native/Cargo.toml --release --platform --no-js --strip \
+          npx napi build --manifest-path native/Cargo.toml --release --platform --no-js --strip --output-dir prebuilds \
             --target x86_64-unknown-linux-gnu --use-napi-cross
-          mv docprims.linux-x64-gnu.node prebuilds/
+          test -f prebuilds/docprims.linux-x64-gnu.node
 
-          npx napi build --manifest-path native/Cargo.toml --release --platform --no-js --strip \
+          npx napi build --manifest-path native/Cargo.toml --release --platform --no-js --strip --output-dir prebuilds \
             --target x86_64-unknown-linux-musl --cross-compile
-          mv docprims.linux-x64-musl.node prebuilds/
+          test -f prebuilds/docprims.linux-x64-musl.node
 
           # arm64-gnu built natively on ubuntu-latest-arm64-s (build-linux-arm64 job)
 
-          npx napi build --manifest-path native/Cargo.toml --release --platform --no-js --strip \
+          npx napi build --manifest-path native/Cargo.toml --release --platform --no-js --strip --output-dir prebuilds \
             --target aarch64-unknown-linux-musl --cross-compile
-          mv docprims.linux-arm64-musl.node prebuilds/
+          test -f prebuilds/docprims.linux-arm64-musl.node
       - name: Upload prebuilds
         uses: actions/upload-artifact@v7
         with:
@@ -78,10 +78,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -f docprims.*.node
+          rm -rf prebuilds
           mkdir -p prebuilds
-          npx napi build --manifest-path native/Cargo.toml --release --platform --no-js --strip
-          mv docprims.linux-arm64-gnu.node prebuilds/
+          npx napi build --manifest-path native/Cargo.toml --release --platform --no-js --strip --output-dir prebuilds
+          test -f prebuilds/docprims.linux-arm64-gnu.node
       - name: Upload prebuild
         uses: actions/upload-artifact@v7
         with:
@@ -106,10 +106,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -f docprims.*.node
+          rm -rf prebuilds
           mkdir -p prebuilds
-          npx napi build --manifest-path native/Cargo.toml --release --platform --no-js --strip
-          mv docprims.darwin-arm64.node prebuilds/
+          npx napi build --manifest-path native/Cargo.toml --release --platform --no-js --strip --output-dir prebuilds
+          test -f prebuilds/docprims.darwin-arm64.node
       - name: Upload prebuild
         uses: actions/upload-artifact@v7
         with:
@@ -134,10 +134,11 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          Remove-Item -Force docprims.*.node -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force prebuilds -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force -Path prebuilds | Out-Null
-          npx napi build --manifest-path native/Cargo.toml --release --platform --no-js --strip
-          Move-Item docprims.win32-x64-msvc.node prebuilds/
+          npx napi build --manifest-path native/Cargo.toml --release --platform --no-js --strip --output-dir prebuilds
+          $node = 'prebuilds/docprims.win32-x64-msvc.node'
+          if (-not (Test-Path $node)) { throw "missing $node" }
       - name: Upload prebuild
         uses: actions/upload-artifact@v7
         with:
