@@ -26,6 +26,9 @@ permissions:
   id-token: write  # Required for OIDC trusted publishing
   contents: read
   actions: read  # Required to download artifacts from other runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
   publish:
     name: Publish to npm
@@ -34,9 +37,9 @@ jobs:
     steps:
       # Note: Do NOT use fetch-tags here. When running from a tag ref,
       # it causes a git fetch conflict. The tag is already checked out.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Setup Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
