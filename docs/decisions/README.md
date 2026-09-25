@@ -9,6 +9,7 @@ This directory contains architectural, design, and security decision records for
 | ADR    | Architecture Decision Record  | Technical architecture choices       |
 | DDR    | Design Decision Record        | API design, data structures          |
 | SDR    | Security Decision Record      | Security-related decisions           |
+| PDR    | Process Decision Record       | Release, publication and process     |
 
 ## Index
 
@@ -27,6 +28,12 @@ This directory contains architectural, design, and security decision records for
 | ID       | Title                | Status   | Date       |
 | -------- | -------------------- | -------- | ---------- |
 | _None yet_ |                    |          |            |
+
+### Process Decision Records (PDR)
+
+| ID       | Title                | Status   | Date       |
+| -------- | -------------------- | -------- | ---------- |
+| [PDR-0001](PDR-0001-crates-io-publication.md) | Publish the docprims crates to crates.io after the release tag | Accepted | 2026-09-25 |
 
 ### Security Decision Records (SDR)
 

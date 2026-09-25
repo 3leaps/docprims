@@ -4,7 +4,13 @@
 //!
 //! This crate provides the shared foundation used by format-specific extractors
 //! (docprims-text, docprims-ooxml, etc.).
+//!
+//! Most users should depend on the [`docprims`](https://docs.rs/docprims)
+//! crate, which is the supported entry point. This crate's API carries no
+//! stability promise beyond what `docprims` re-exports.
 
+#[doc(hidden)]
+pub mod xml;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use std::path::Path;
@@ -43,6 +49,7 @@ pub fn truncate_to_utf8_boundary(s: &str, max_bytes: usize) -> &str {
 
 /// Errors that can occur during document extraction.
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum DocprimsError {
     /// I/O error reading the document
     #[error("I/O error: {0}")]
@@ -94,7 +101,7 @@ impl ExtractedText {
     /// Create a new ExtractedText with complete extraction.
     pub fn complete(content: String) -> Self {
         Self {
-            content,
+            content: xml::retain_output_chars(content),
             metadata: None,
             quality: ExtractionQuality::Complete,
         }
@@ -103,7 +110,7 @@ impl ExtractedText {
     /// Create a new ExtractedText with partial extraction.
     pub fn partial(content: String, reason: String) -> Self {
         Self {
-            content,
+            content: xml::retain_output_chars(content),
             metadata: None,
             quality: ExtractionQuality::Partial { reason },
         }
@@ -167,26 +174,19 @@ pub trait Extractor {
     fn extensions(&self) -> &'static [&'static str];
 }
 
-/// Options for text extraction.
-#[derive(Debug, Clone, Default)]
-pub struct ExtractOptions {
-    /// Include document metadata in output
-    pub include_metadata: bool,
-
-    /// Maximum output size in bytes (0 = unlimited)
-    pub max_output_size: usize,
-
-    /// Timeout for extraction in milliseconds (0 = unlimited)
-    pub timeout_ms: u64,
-}
-
 /// Resource limits for extraction.
 ///
 /// These defaults are intentionally conservative since docprims parses untrusted input.
+/// Every limit is literal: `0` means zero, not "unlimited". A limit of `0` for
+/// output bytes or blocks yields empty, `partial` output.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct ExtractLimits {
+    /// Largest input accepted, in bytes; larger input is rejected before parsing.
     pub max_input_bytes: usize,
+    /// Largest document text emitted, in bytes; output is truncated at a
+    /// character boundary and marked `partial`.
     pub max_output_bytes: usize,
+    /// Most blocks emitted; further blocks are dropped and output is marked `partial`.
     pub max_blocks: usize,
 }
 
@@ -282,8 +282,9 @@ impl DocprimsQuality {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[non_exhaustive]
 pub enum DocprimsQualityStatus {
     Complete,
     Partial,
@@ -370,6 +371,7 @@ pub struct DocprimsContainer {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[non_exhaustive]
 pub enum DocprimsContainerKind {
     File,
     Archive,

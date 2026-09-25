@@ -48,6 +48,11 @@ pub fn extract_v0<R: Read + Seek>(
     let mut block_index = 0usize;
 
     for (p_idx, p) in paragraphs.into_iter().enumerate() {
+        // Paragraphs arrive trimmed; filtering removes no whitespace, so
+        // re-trimming yields the same result as filtering before the trim.
+        let p = docprims_core::xml::retain_output_chars(p)
+            .trim()
+            .to_string();
         if p.is_empty() {
             continue;
         }
@@ -73,6 +78,13 @@ pub fn extract_v0<R: Read + Seek>(
         } else {
             p
         };
+        if text.is_empty() {
+            // Nothing fits: drop this block's separator rather than emit an empty block.
+            if start > 0 {
+                doc_text.pop();
+            }
+            break;
+        }
         doc_text.push_str(&text);
         let end = doc_text.len();
 
@@ -145,17 +157,17 @@ fn extract_text_from_document(xml: &str) -> Result<String> {
             Ok(Event::Start(e)) => {
                 let local_name = e.local_name();
                 match local_name.as_ref() {
-                    b"p" => {
+                    "p" => {
                         // Paragraph start - add newline if we have content
                         if !text.is_empty() && !text.ends_with('\n') {
                             text.push('\n');
                         }
                     }
-                    b"br" => {
+                    "br" => {
                         // Line break
                         text.push('\n');
                     }
-                    b"tab" => {
+                    "tab" => {
                         // Tab character
                         text.push('\t');
                     }
@@ -163,14 +175,12 @@ fn extract_text_from_document(xml: &str) -> Result<String> {
                 }
             }
             Ok(Event::Text(e)) => {
-                let decoded = e
-                    .decode()
-                    .map_err(|e| DocprimsError::Parse(format!("XML decode error: {}", e)))?;
+                let decoded = e.into_inner();
                 text.push_str(&decoded);
             }
             Ok(Event::GeneralRef(e)) => {
                 if let Some(resolved) = resolve_entity(&e) {
-                    text.push_str(resolved);
+                    text.push_str(&resolved);
                 }
             }
             Ok(Event::Eof) => break,
@@ -196,20 +206,20 @@ fn extract_paragraphs(xml: &str) -> Result<Vec<String>> {
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(e)) => match e.local_name().as_ref() {
-                b"p" => {
+                "p" => {
                     in_p = true;
                     cur.clear();
                 }
-                b"br" if in_p => {
+                "br" if in_p => {
                     cur.push('\n');
                 }
-                b"tab" if in_p => {
+                "tab" if in_p => {
                     cur.push('\t');
                 }
                 _ => {}
             },
             Ok(Event::End(e)) => {
-                if e.local_name().as_ref() == b"p" {
+                if e.local_name().as_ref() == "p" {
                     in_p = false;
                     let t = cur.trim().to_string();
                     if !t.is_empty() {
@@ -220,16 +230,14 @@ fn extract_paragraphs(xml: &str) -> Result<Vec<String>> {
             }
             Ok(Event::Text(e)) => {
                 if in_p {
-                    let decoded = e
-                        .decode()
-                        .map_err(|e| DocprimsError::Parse(format!("XML decode error: {}", e)))?;
+                    let decoded = e.into_inner();
                     cur.push_str(&decoded);
                 }
             }
             Ok(Event::GeneralRef(e)) => {
                 if in_p {
                     if let Some(resolved) = resolve_entity(&e) {
-                        cur.push_str(resolved);
+                        cur.push_str(&resolved);
                     }
                 }
             }

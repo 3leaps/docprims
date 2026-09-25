@@ -1,53 +1,72 @@
 # Release Checklist
 
-This document walks maintainers through the build/sign/upload flow for each docprims release.
-
-docprims uses the same high-level release posture as sysprims:
-
-- CI builds unsigned artifacts.
-- Maintainers sign checksum manifests locally and upload signatures + public keys.
+This checklist covers release preparation, the signed tag and unsigned
+draft, the maintainer MFA signing ceremony, and npm and crates.io
+publication. CI never receives signing keys and never publishes a GitHub
+release. Earlier unsigned annotated tags remain historical; signing begins
+with v0.2.0.
 
 ## Prerequisites
 
-- `gh` CLI authenticated with push access
-- `minisign` installed (required)
-- `gpg` installed (optional; only if you also PGP sign)
-- Signing keys configured and available on your machine
+- `make bootstrap` and `make tools` are green
+- `gh`, minisign, and optional GPG tooling are available
+- `gh` is authenticated for `3leaps/docprims`
+- Approved signing material is loaded from an external secret store without
+  printing values or paths
 
-## 1. Pre-Release Preparation
+Required ceremony variables:
 
-### Code Quality Gates
+- `DOCPRIMS_RELEASE_TAG` — the sole canonical tag input, for example
+  `v0.2.0` when `VERSION` contains `0.2.0`
+- `DOCPRIMS_MINISIGN_KEY` — minisign secret-key file outside the repository
+- `DOCPRIMS_MINISIGN_PUB` — explicit minisign public-key file
+- `DOCPRIMS_DECERNOR_BIN` — absolute executable Decernor v0.1.8+ binary
+  selected by the maintainer; self-reported identity does not authenticate
+  the file, so bind it to a trusted tag-built regular file (not a symlink)
+- `DOCPRIMS_TAG_MESSAGE_DIR` — external per-cut directory ending in the
+  canonical tag; its only message input is `message.txt`
+- `DOCPRIMS_TAGGER_NAME` / `DOCPRIMS_TAGGER_EMAIL` — fixed infosec
+  tagger identity (`3 Leaps Infosec Team <infosec@3leaps.net>`)
+- `DOCPRIMS_GPG_SIGNING_FINGERPRINT` — full 40-hex authorized primary
+  fingerprint; `DOCPRIMS_PGP_KEY_ID` selects an exact 40-hex signing
+  subkey with a trailing `!`
 
-- [ ] Ensure `main` is clean: `git status` shows no uncommitted changes
-- [ ] Run quality gates: `make check`
-- [ ] Run full tests: `cargo test --workspace`
-- [ ] Verify cargo-deny passes: `cargo deny check`
+GPG tag signing requires `DOCPRIMS_PGP_KEY_ID` and
+`DOCPRIMS_GPG_HOMEDIR`. Both manifest signatures are made during the
+subsequent maintainer ceremony. Partial configuration fails closed.
 
-### Version & Documentation
+## 1. Write and prepare
 
-- [ ] Update `VERSION` file with new semver (e.g. `0.1.1`)
-- [ ] Ensure workspace version matches `VERSION` (if applicable)
-- [ ] Update `CHANGELOG.md` (if present)
+- [ ] Set the version everywhere: `make version-set V=X.Y.Z` (writes `VERSION`,
+      `Cargo.toml`, `Cargo.lock` and the npm manifests), then `make version-check`
+- [ ] Check release-tooling fixtures for hard-coded prior-version values;
+      run `make release-tooling-test` and confirm mismatched tags fail
+- [ ] Move `CHANGELOG.md` `[Unreleased]` entries under `## [X.Y.Z] - YYYY-MM-DD`
+- [ ] Add `## vX.Y.Z — YYYY-MM-DD` to `RELEASE_NOTES.md` (newest first, at most
+      three cuts) and copy that exact section to `docs/releases/vX.Y.Z.md`
+- [ ] Confirm README MSRV prose matches `[workspace.package].rust-version`
+- [ ] Run `make prepush` and `make release-check`
+- [ ] Commit the release preparation and merge it through the normal review
+      process; confirm required CI on `main` is green
+- [ ] Prove the release build matrix without releasing: run the Release
+      workflow manually on `main` (`gh workflow run release.yml --ref main`)
+      and confirm its `assemble` job validates the exact asset set
+- [ ] Merge the release-tag and anchor tooling through a reviewed PR **before**
+      adding its public pin and anchors. A disposable worktree of the local
+      tooling branch may be used to rehearse the steps below; perform the real
+      public-pin/anchor change on a separate branch from updated `main` and
+      review it in a separate PR before tagging
+- [ ] Confirm the reviewed public pin and decernor-generated anchor pair are
+      committed; Dave generates them with `make release-insert-anchors` using
+      `DOCPRIMS_DECERNOR_BIN` set to an absolute executable Decernor
+      v0.1.8 or newer. The ceremony never falls back to `DECERNOR_BIN` or PATH;
+      generation verifies the installed pair against both public exports
+- [ ] Complete the Go bindings prep below and merge its PR
+- [ ] From a clean, freshly fetched `main`, run `make release-preflight`
 
-### Commit & Push
-
-- [ ] Commit changes:
-  ```bash
-  git add -A
-  git commit -m "release: prepare vX.Y.Z"
-  ```
-- [ ] Push to main:
-  ```bash
-  git push origin main
-  ```
-
-- [ ] Verify local/remote sync (required before running workflows):
-  ```bash
-  git fetch origin
-  git log --oneline origin/main..HEAD
-  git log --oneline HEAD..origin/main
-  ```
-  Both commands must show no output.
+The preflight requires a clean tree, the full `make prepush` gate, exact
+release-note extraction, a successful fetch, and exact equality between
+`HEAD` and fetched `origin/main`.
 
 ### Go Bindings Prep (Required)
 
@@ -77,31 +96,154 @@ Go bindings must be fetchable via `go get` without requiring Rust.
   make go-test-shared                   # shared (from repo root)
   ```
 
-### Create and Push Tags
+### Initial public pin and anchors (maintainer only)
 
-Create and push tags that point to the SAME commit (the commit that includes the merged Go bindings PR).
+Export the **existing approved key's public portion** into the repository for
+review; this does not generate a new key or change the key already registered
+on GitHub. GitHub's Verified badge is a secondary check, while the committed
+pin authorizes the signing key used by CI. Run the commands from the repository
+root on the separate public-pin/anchor branch in a fresh shell. Set the intended
+release tag by hand
+**before** loading the approved external environment so its per-cut message
+directory is derived from the intended tag.
+Confirm the external message directory ends in that tag. Do not use an ambient
+GPG home:
 
 ```bash
-VERSION=$(cat VERSION)
-
-# Canonical repo tag
-git tag -a "v${VERSION}" -m "v${VERSION}: docprims release"
-
-# Go submodule tag (required for subdir Go module)
-git tag -a "bindings/go/docprims/v${VERSION}" -m "bindings/go/docprims/v${VERSION}"
-
-git push origin "v${VERSION}" "bindings/go/docprims/v${VERSION}"
+export DOCPRIMS_RELEASE_TAG=v0.2.0 # example: first signed cut; set each cut explicitly
+# Load the approved external environment for this repository before continuing.
+(
+  set -euo pipefail # a failed guard stops this entire block, even in an interactive shell
+  : "${DOCPRIMS_RELEASE_TAG:?set the approved tag for this cut}"
+  : "${DOCPRIMS_GPG_HOMEDIR:?load the approved GPG home}"
+  : "${DOCPRIMS_PGP_KEY_ID:?load the exact signing-subkey selector}"
+  : "${DOCPRIMS_GPG_SIGNING_FINGERPRINT:?load the approved primary fingerprint}"
+  : "${DOCPRIMS_DECERNOR_BIN:?load the trusted Decernor executable}"
+  : "${DOCPRIMS_TAG_MESSAGE_DIR:?load the per-cut message directory}"
+  : "${DOCPRIMS_MINISIGN_PUB:?load the approved minisign public export}"
+  [[ "$DOCPRIMS_GPG_HOMEDIR" == /* && -d "$DOCPRIMS_GPG_HOMEDIR" ]]
+  [[ "$DOCPRIMS_DECERNOR_BIN" == /* && -f "$DOCPRIMS_DECERNOR_BIN" &&
+     ! -L "$DOCPRIMS_DECERNOR_BIN" && -x "$DOCPRIMS_DECERNOR_BIN" ]]
+  python3 - "$DOCPRIMS_GPG_HOMEDIR" "$HOME/.gnupg" <<'PY'
+from pathlib import Path
+import sys
+if Path(sys.argv[1]).resolve() == Path(sys.argv[2]).resolve():
+    raise SystemExit('STOP: default GPG home is not approved for this ceremony')
+PY
+  [[ "$DOCPRIMS_PGP_KEY_ID" == *'!' ]]
+  [[ "${DOCPRIMS_TAG_MESSAGE_DIR%/}" == */"$DOCPRIMS_RELEASE_TAG" ]]
+  bash -c 'source scripts/release-decernor.sh; resolve_release_decernor ceremony'
+  pin=docs/security/release-signing-keys.asc
+  [[ ! -e "$pin" && ! -L "$pin" ]] || { echo 'STOP: public pin already exists' >&2; exit 1; }
+  set -C # never overwrite a public pin
+  gpg --homedir "$DOCPRIMS_GPG_HOMEDIR" --batch --armor \
+    --export "$DOCPRIMS_PGP_KEY_ID" > "$pin"
+  require_public_only() {
+    if "$DOCPRIMS_DECERNOR_BIN" fingerprint "$1" --kind "$2" \
+      --class private --fail-on-empty --path-mode none >/dev/null; then
+      echo 'STOP: private material in public export' >&2; exit 1
+    else
+      decernor_rc=$?
+      [[ "$decernor_rc" -eq 3 ]] || { echo 'STOP: private-material check failed' >&2; exit 1; }
+    fi
+  }
+  require_public_only "$pin" gpg
+  [[ -s "$DOCPRIMS_MINISIGN_PUB" && ! -L "$DOCPRIMS_MINISIGN_PUB" ]]
+  require_public_only "$DOCPRIMS_MINISIGN_PUB" minisign
+  grep -q '^untrusted comment:' "$DOCPRIMS_MINISIGN_PUB"
+  verify_tmp="$(mktemp -d)"
+  trap 'rm -rf "$verify_tmp"' EXIT
+  "$DOCPRIMS_DECERNOR_BIN" fingerprint "$pin" --kind gpg \
+    --class public --fail-on-empty --path-mode none >"$verify_tmp/gpg.ndjson"
+  python3 - "$verify_tmp/gpg.ndjson" "$DOCPRIMS_GPG_SIGNING_FINGERPRINT" \
+    "$DOCPRIMS_PGP_KEY_ID" <<'PY'
+import json
+import pathlib
+import re
+import sys
+records = [json.loads(line) for line in pathlib.Path(sys.argv[1]).read_text().splitlines()]
+primary, selector = sys.argv[2:]
+if not re.fullmatch('[0-9A-F]{40}', primary) or not re.fullmatch('[0-9A-F]{40}!', selector):
+    raise SystemExit('STOP: invalid configured fingerprints')
+if len(records) != 2 or any(r.get('kind') != 'gpg' or r.get('class') != 'public' for r in records):
+    raise SystemExit('STOP: expected exactly one public primary and signing subkey')
+by_role = {r.get('key_role'): r.get('fingerprint') for r in records}
+if by_role != {'primary': primary, 'subkey': selector[:-1]}:
+    raise SystemExit('STOP: exported public key differs from approved selector')
+PY
+  gpg --homedir "$verify_tmp" --batch --show-keys \
+    --fingerprint --with-subkey-fingerprint "$pin" # inspect readable expiry/revocation
+)
 ```
 
-### CI Verification
+The `!` selects one signing subkey; the export includes its primary public key.
+Decernor must find **no private record**. With `--fail-on-empty`, exit 3 is the
+expected no-match result; exit 0 means private material was found and every
+other result is a stop. The block asserts exactly one primary matching the
+approved fingerprint and one subkey matching the `!` selector. Before
+proceeding, inspect the human-readable GPG output for unexpired, non-revoked
+primary and signing subkey; it uses a throwaway home, not the ceremony keyring.
+Only after those checks pass, run:
 
-- [ ] Wait for GitHub Actions workflows on the tag (release build, if configured)
-- [ ] (Recommended) Run Go bindings staged validation:
-  - `.github/workflows/go-bindings.yml` (glibc on PR; musl on manual)
-- [ ] (Recommended) Validate the tag (includes Go + TypeScript):
+```bash
+(
+  set -euo pipefail # stop before later checks if generation or verification fails
+  make release-insert-anchors
+  ./scripts/validate-release-anchors.sh
+  make release-tooling-test
+  make prepush
+  git status --short
+)
+```
+
+The minisign export starts with `untrusted comment:`. After insertion, Decernor reports
+`fingerprint verify: records=2 findings=0` and the script reports
+`[ok] generated public fingerprint anchors for review`. The two generated
+files contain exactly `gpg <40 uppercase hex>` and `minisign <64 lowercase hex>`
+in TXT, with corresponding primary and public-blob NDJSON records. The GPG
+anchor equals the approved primary. Only the public pin and those two anchors
+should appear in the working-tree diff; reviewers re-derive the fingerprints
+from the public exports before approving the PR. Stop on any unexpected file,
+private marker, missing or extra key, expiry/revocation, mismatch, invalid
+Decernor version, or nonzero generation/verification result. Fix the cause and
+regenerate; never hand-edit an anchor. If a post-export check fails, Dave must
+confirm that the new untracked public pin is his intended export, remove that
+failed export, then rerun from the beginning. Never overwrite an existing pin.
+
+## 2. Create the signed tag and unsigned draft
+
+Only after an explicit tag cue, from clean `main` at the preflighted commit:
+
+```bash
+: "${DOCPRIMS_RELEASE_TAG:?load the approved cut}"
+: "${DOCPRIMS_TAG_MESSAGE_DIR:?load the external per-cut message dir}"
+test -s "${DOCPRIMS_TAG_MESSAGE_DIR}/message.txt"
+make release-tag          # creates and verifies locally, no push
+make release-push-tag     # explicit maintainer action; verifies remote object
+```
+
+Then tag the Go submodule at the same commit (required for the subdirectory
+Go module):
+
+```bash
+git tag -a "bindings/go/docprims/${DOCPRIMS_RELEASE_TAG}" -m "bindings/go/docprims/${DOCPRIMS_RELEASE_TAG}"
+git push origin "bindings/go/docprims/${DOCPRIMS_RELEASE_TAG}"
+```
+
+- [ ] Confirm the tag workflow is green
+- [ ] Confirm the tag has GitHub **Verified** status and the
+      `verify-signature` gate passed before a draft is created
+- [ ] Confirm the GitHub release is still a draft
+- [ ] Confirm it contains the CLI archives from
+      `config/release/cli-platforms.txt`, `docprims.h`, the CycloneDX SBOM,
+      and both licenses
+- [ ] Do not sign until the draft inventory is complete
+
+### Release validation
+
+- [ ] Validate the tag (Go and TypeScript):
   ```bash
-  VERSION=$(cat VERSION)
-  gh workflow run "Validate Release" -f tag="v${VERSION}"
+  gh workflow run "Validate Release" -f tag="${DOCPRIMS_RELEASE_TAG}"
   ```
 
 ### TypeScript N-API Prebuilds (Required for npm)
@@ -119,84 +261,57 @@ Run the prebuilds workflow on the release tag to build cross-platform native bin
   ```
 - [ ] Verify all platforms built successfully
 
-The prebuilds must complete before running the npm publish workflow in Section 3.
+The prebuilds must complete before running the npm publish workflow in Section 4.
 
-## 2. Manual Signing (Local Machine)
+## 3. Maintainer MFA sign and upload
 
-docprims signs checksum manifests for release artifacts.
-
-### Set Environment Variables
+Use a clean detached checkout. Fetch both the exact tag and `main`; the strict
+guard peels the annotated tag and requires the tag, `HEAD`, and fetched
+`origin/main` to be the same commit.
 
 ```bash
-export DOCPRIMS_RELEASE_TAG=v$(cat VERSION)
-
-export DOCPRIMS_MINISIGN_KEY=/path/to/docprims.key
-export DOCPRIMS_MINISIGN_PUB=/path/to/docprims.pub
-
-# Optional PGP signing
-export DOCPRIMS_PGP_KEY_ID="keyid!"
-export DOCPRIMS_GPG_HOMEDIR=/path/to/gpg/homedir
+: "${DOCPRIMS_RELEASE_TAG:?load the approved release tag}"
+: "${DOCPRIMS_MINISIGN_KEY:?load the approved secret key}"
+: "${DOCPRIMS_MINISIGN_PUB:?load the approved public key}"
+test -z "$(git status --porcelain)"
+git fetch origin \
+  "+refs/heads/main:refs/remotes/origin/main" \
+  "+refs/tags/${DOCPRIMS_RELEASE_TAG}:refs/tags/${DOCPRIMS_RELEASE_TAG}"
+git checkout --detach "$DOCPRIMS_RELEASE_TAG"
+DOCPRIMS_REQUIRE_TAG=1 make release-guard-tag-version
+make release-verify-tag
+make release-verify-remote-tag
+make release
 ```
 
-### Signing Steps
+`make release` performs the only serialized walk:
 
-1. Clean previous release artifacts:
-   ```bash
-   make release-clean
-   ```
+Keep `DOCPRIMS_DECERNOR_BIN` bound to the reviewed absolute v0.1.8+
+executable throughout the ceremony; `release-verify-keys` re-derives both
+exported publics against the anchors staged into the signed set.
 
-2. Download artifacts from the GitHub draft release:
-   ```bash
-   make release-download
-   ```
+1. Safely empty the repository-owned `dist/release`
+2. Download and structurally validate the exact unsigned draft assets
+3. Add the exact per-cut release notes and staged public fingerprint anchors
+4. Generate exact SHA-256 and SHA-512 manifests
+5. Sign both manifests
+6. Export and prove public verification keys
+7. Verify once, upload the explicit provenance set, and recheck the exact
+   remote inventory
 
-3. Generate checksum manifests:
-   ```bash
-   make release-checksums
-   ```
-   Produces: `SHA256SUMS`, `SHA512SUMS`
+- [ ] Confirm the release remains a draft after upload
+- [ ] Independently download into an empty directory and verify both checksum
+      manifests and minisign signatures
+- [ ] Review the final release notes and asset list
+- [ ] Publish the GitHub release only as a separate, explicit maintainer action
 
-4. Sign checksum manifests:
-   ```bash
-   make release-sign
-   ```
-   Produces: `.minisig` and optional `.asc` signatures
-
-   > **Note (Ghostty users):** If GPG fails with "Screen or window too small", prefix with:
-   > ```bash
-   > TERM=xterm-256color make release-sign
-   > ```
-
-5. Export public keys into the release directory:
-   ```bash
-   make release-export-keys
-   ```
-   Produces:
-   - `docprims-minisign.pub`
-   - `docprims-release-signing-key.asc` (optional)
-
-6. Verify everything before upload:
-   ```bash
-   make release-verify
-   ```
-
-7. Copy release notes (optional):
-   ```bash
-   make release-notes
-   ```
-
-8. Upload signed assets to GitHub and publish the release:
-   ```bash
-   make release-upload
-   ```
-
-## 3. TypeScript npm Publishing
+## 4. TypeScript npm Publishing
 
 After signing and undrafting the GitHub release, publish to npm.
 
 ### Prerequisites
 
-- Prebuilds workflow completed successfully (Section 1)
+- Prebuilds workflow completed successfully (Section 2)
 - GitHub release is public (not draft)
 - `publish-npm` environment configured on GitHub (for OIDC trusted publishing)
 
@@ -229,9 +344,64 @@ npm publish --access public
 
 This publishes with local platform binary only. Run the workflow publish afterward for cross-platform support.
 
-## 4. Post-Release Verification
+## 5. crates.io (maintainer action after the tag)
+
+CI has no registry token and never uploads crates. A registry version cannot
+be overwritten: a correction takes a new patch version.
+
+The only ordered list is `config/release/publishable-crates.txt`
+(`docprims-core`, `docprims-text`, `docprims-ooxml`, `docprims`); print and
+validate it with `make release-crates-list`. `docprims-ffi` and
+`docprims-ts-napi` are unpublished (`publish = false`), which
+`make release-tooling-test` proves.
+
+- [ ] In a clean detached checkout of the pushed tag:
+  ```bash
+  git checkout --detach "v$(cat VERSION)"
+  DOCPRIMS_RELEASE_TAG="v$(cat VERSION)" DOCPRIMS_REQUIRE_TAG=1 make release-guard-tag-version
+  DOCPRIMS_RELEASE_TAG="v$(cat VERSION)" make release-verify-remote-tag
+  DOCPRIMS_RELEASE_TAG="v$(cat VERSION)" make release-crates-dry-run
+  ```
+  The dry run patches earlier workspace crates in by path; it uploads nothing.
+- [ ] Use a crates.io token scoped to the publishable names, kept outside the
+      repository and CI, with an expiry of 30–90 days. The first upload needs
+      `publish-new` and `publish-update`; later versions need only
+      `publish-update`. Do not grant `yank`. Load it only into the environment
+      of each publish command; do not use `cargo login`.
+- [ ] Publish **one crate at a time** in list order, verifying each before the next:
+  ```bash
+  make release-crates-list
+  export DOCPRIMS_RELEASE_TAG="v$(cat VERSION)"
+  cargo publish --locked -p "${crate:?set the next ordered crate}"
+  make release-crates-verify CRATE="$crate"
+  # Repeat for each remaining entry; after the last:
+  make release-crates-verify
+  ```
+  Each verification waits for `cargo info --registry crates-io <crate>@<version>`
+  and checks the exact version on the crates.io API.
+- [ ] Review the crates.io pages and the docs.rs builds.
+
+## 6. Post-Release Verification
 
 - [ ] Verify release is public: `gh release view v$(cat VERSION)`
 - [ ] Download and verify checksums/signatures using the published public keys
 - [ ] Verify npm package: `npm view @3leaps/docprims`
+- [ ] Verify crates: `cargo info --registry crates-io docprims@$(cat VERSION)`
 - [ ] Test Go module: `go get github.com/3leaps/docprims/bindings/go/docprims@v$(cat VERSION)`
+
+## Rotate release signing keys
+
+Before the first cut with a new key, generate a new public export and anchors
+under maintainer identity and land both through a reviewed PR. CI must see the
+new pinned public key _in the tagged commit_; an account-level GitHub Verified
+indicator alone cannot authorize a release. Re-derive both fingerprint records
+with `decernor fingerprint`, review the primary/subkey relationship, and confirm
+the tagger account has the matching public key and verified email. Check the
+primary and signing-subkey expiration with:
+
+```bash
+gpg --homedir "$DOCPRIMS_GPG_HOMEDIR" --list-keys --with-subkey-fingerprint --with-colons "$DOCPRIMS_GPG_SIGNING_FINGERPRINT"
+```
+
+An expired key is a rotation nobody scheduled. Do not sign or publish until a
+reviewed replacement pin is on `main` and the tag ruleset is active.

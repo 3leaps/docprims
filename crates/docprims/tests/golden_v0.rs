@@ -1,8 +1,6 @@
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
-use docprims_core::{DocprimsExtract, ExtractLimits};
-use jsonschema::Resource;
-use std::io::Cursor;
+use docprims::{DocprimsExtract, ExtractLimits};
 use std::path::{Path, PathBuf};
 
 fn limits() -> ExtractLimits {
@@ -29,22 +27,26 @@ fn v0_validator() -> jsonschema::Validator {
     ))
     .unwrap();
 
-    jsonschema::draft202012::options()
-        .with_resources(
-            [
-                (
-                    "https://schemas.3leaps.dev/docprims/extract/v0/docprims-block.schema.json",
-                    Resource::from_contents(block_schema).unwrap(),
-                ),
-                (
-                    "https://schemas.3leaps.dev/docprims/extract/v0/docprims-location.schema.json",
-                    Resource::from_contents(loc_schema).unwrap(),
-                ),
-            ]
-            .into_iter(),
-        )
-        .build(&root_schema)
-        .unwrap()
+    {
+        let registry = jsonschema::Registry::new()
+            .add(
+                "https://schemas.3leaps.dev/docprims/extract/v0/docprims-block.schema.json",
+                block_schema,
+            )
+            .unwrap()
+            .add(
+                "https://schemas.3leaps.dev/docprims/extract/v0/docprims-location.schema.json",
+                loc_schema,
+            )
+            .unwrap()
+            .prepare()
+            .unwrap();
+        jsonschema::draft202012::options()
+            .offline()
+            .with_registry(&registry)
+            .build(&root_schema)
+            .unwrap()
+    }
 }
 
 fn read_text_fixture(path: &str) -> String {
@@ -58,7 +60,7 @@ fn read_b64_fixture(path: &str) -> Vec<u8> {
 }
 
 fn repo_root() -> PathBuf {
-    // CARGO_MANIFEST_DIR points at crates/docprims-cli; repo root is two levels up.
+    // CARGO_MANIFEST_DIR points at crates/docprims; repo root is two levels up.
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
@@ -93,7 +95,7 @@ fn assert_golden(name: &str, got: &DocprimsExtract) {
 fn golden_markdown_simple_v0() {
     let src = "testdata/fixtures/text/simple.md";
     let s = read_text_fixture(src);
-    let got = docprims_text::markdown::extract_v0_str(&s, src, limits()).unwrap();
+    let got = docprims::extract_bytes(src, s.as_bytes(), limits()).unwrap();
     assert_golden("markdown-simple", &got);
 }
 
@@ -101,7 +103,7 @@ fn golden_markdown_simple_v0() {
 fn golden_html_simple_v0() {
     let src = "testdata/fixtures/text/simple.html";
     let s = read_text_fixture(src);
-    let got = docprims_text::html::extract_v0_str(&s, src, limits()).unwrap();
+    let got = docprims::extract_bytes(src, s.as_bytes(), limits()).unwrap();
     assert_golden("html-simple", &got);
 }
 
@@ -109,7 +111,7 @@ fn golden_html_simple_v0() {
 fn golden_xml_simple_v0() {
     let src = "testdata/fixtures/text/simple.xml";
     let s = read_text_fixture(src);
-    let got = docprims_text::xml::extract_v0_str(&s, src, limits()).unwrap();
+    let got = docprims::extract_bytes(src, s.as_bytes(), limits()).unwrap();
     assert_golden("xml-simple", &got);
 }
 
@@ -117,8 +119,7 @@ fn golden_xml_simple_v0() {
 fn golden_docx_mini_v0() {
     let src = "testdata/fixtures/ooxml/mini.docx";
     let zip_bytes = read_b64_fixture("testdata/fixtures/ooxml/mini.docx.b64");
-    let got =
-        docprims_ooxml::extract_docx_v0_reader(Cursor::new(zip_bytes), src, limits()).unwrap();
+    let got = docprims::extract_bytes(src, &zip_bytes, limits()).unwrap();
     assert_golden("docx-mini", &got);
 }
 
@@ -126,8 +127,7 @@ fn golden_docx_mini_v0() {
 fn golden_xlsx_mini_v0() {
     let src = "testdata/fixtures/ooxml/mini.xlsx";
     let zip_bytes = read_b64_fixture("testdata/fixtures/ooxml/mini.xlsx.b64");
-    let got =
-        docprims_ooxml::extract_xlsx_v0_reader(Cursor::new(zip_bytes), src, limits()).unwrap();
+    let got = docprims::extract_bytes(src, &zip_bytes, limits()).unwrap();
     assert_golden("xlsx-mini", &got);
 }
 
@@ -135,7 +135,6 @@ fn golden_xlsx_mini_v0() {
 fn golden_pptx_mini_v0() {
     let src = "testdata/fixtures/ooxml/mini.pptx";
     let zip_bytes = read_b64_fixture("testdata/fixtures/ooxml/mini.pptx.b64");
-    let got =
-        docprims_ooxml::extract_pptx_v0_reader(Cursor::new(zip_bytes), src, limits()).unwrap();
+    let got = docprims::extract_bytes(src, &zip_bytes, limits()).unwrap();
     assert_golden("pptx-mini", &got);
 }

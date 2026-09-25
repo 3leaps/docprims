@@ -30,6 +30,7 @@ docprims is a Rust library (with CLI + FFI bindings) that extracts text from doc
 |-----------|-----------|-----------|
 | Defensive parsing | Untrusted input is the norm | ADR-0003 |
 | Schema-driven contracts | Consumers need stability guarantees | `schemas/v0/extract/` |
+| Output guarantees | Extracted text contains only XML 1.0 characters, excluding DEL and C1 controls (U+007F–U+009F); other characters are dropped. Markdown and HTML keep their parsers' U+FFFD replacement for NUL. | [extract/v0 contract](../standards/extract-contract-stability.md) |
 | Minimal core dependencies | Keep docprims-core embeddable | ADR-0002 |
 | CLI composability | Stdout purity for pipelines | ADR-0004 |
 | GPL-free license policy | Safe for commercial embedding | ADR-0001 |
@@ -51,7 +52,7 @@ flowchart LR
     Text[docprims-text]
     OOXML[docprims-ooxml]
     FFI[docprims-ffi]
-    CLIBin[docprims-cli]
+    CLIBin[docprims]
   end
 
   subgraph Downstream[Example downstream systems]
@@ -84,7 +85,7 @@ docprims/
 │   ├── docprims-core/      # Shared types, traits, errors, structured model
 │   ├── docprims-text/      # Markdown, HTML, XML extraction
 │   ├── docprims-ooxml/     # DOCX, XLSX, PPTX extraction
-│   └── docprims-cli/       # CLI binary
+│   └── docprims/           # Library entry point; CLI (`cli` feature)
 ├── ffi/
 │   └── docprims-ffi/       # C-ABI for language bindings
 ├── bindings/
@@ -118,7 +119,9 @@ docprims/
 - ZIP archive handling with security controls
 - XML namespace handling for Office namespaces
 
-**docprims-cli**:
+**docprims** (library entry point):
+- `extract_file` / `extract_bytes` with format dispatch by extension or explicit `Format`; no content sniffing
+- Per-format features; the `cli` feature adds the `docprims` binary
 - `docprims extract <file>` - unified extraction command
 - Format auto-detection
 - JSON and plain text output modes
@@ -261,7 +264,7 @@ flowchart TD
     ENC[Encoding validation]
   end
 
-  V --> D[Format Detection]
+  V --> D[Format Dispatch: extension or explicit format]
   D --> P{Format Parser}
 
   P -->|markdown| TM[docprims-text::markdown]
@@ -296,11 +299,11 @@ docprims is classified as **security-sensitive** because it parses untrusted inp
 
 | Threat | Mitigation |
 |--------|------------|
-| Zip bombs | Decompression ratio limits, file count limits |
-| XML bombs (billion laughs) | Entity expansion disabled, depth limits |
+| Zip bombs | Per-part and per-archive decompressed-size limits (bytes actually read), file count limits |
+| XML bombs (billion laughs) | No DTD or custom entity expansion; iterative (non-recursive) parsing |
 | Path traversal | Archive path validation, no `..` allowed |
 | Memory exhaustion | `max_input_bytes`, `max_output_bytes` limits |
-| CPU exhaustion | `timeout_ms`, iteration limits |
+| CPU exhaustion | Linear-time parsing; input, output, block and decompression limits. No wall-clock timeout. |
 | Malformed input crashes | `Result<T, Error>` everywhere, no panics on bad input |
 
 ### Resource Limits (ExtractLimits)
@@ -450,6 +453,8 @@ schemas/
 ```
 
 During alpha (`v0.x`), schemas live under `schemas/v0/`. Post-1.0, schemas will be versioned independently.
+
+`extract/v0` is classified **Evolving**; see [extract/v0 contract](../standards/extract-contract-stability.md) for its stability level, output guarantees and data sensitivity.
 
 ## Testing Strategy (Contract First)
 

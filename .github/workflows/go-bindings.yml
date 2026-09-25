@@ -2,19 +2,24 @@ name: go-bindings
 on:
   pull_request:
   workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   go-test-linux-amd64:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de  # v1
         with:
-          toolchain: 1.88.0
-      - uses: actions/setup-go@v5
+          toolchain: 1.94.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version: "1.22.x"
       - name: Install cbindgen
-        run: cargo install cbindgen --locked
+        run: cargo install cbindgen@0.29.4 --locked
       - name: Build FFI and run Go tests (glibc)
         run: |
           make go-test
@@ -22,8 +27,8 @@ jobs:
   go-test-darwin-arm64-vendored:
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version: "1.22.x"
       - name: Run Go tests (vendored darwin-arm64)
@@ -33,26 +38,26 @@ jobs:
   go-test-darwin-arm64-shared:
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de  # v1
         with:
-          toolchain: 1.88.0
-      - uses: actions/setup-go@v5
+          toolchain: 1.94.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version: "1.22.x"
       - name: Install cbindgen
-        run: cargo install cbindgen --locked
+        run: cargo install cbindgen@0.29.4 --locked
       - name: Build FFI and run Go tests (shared)
         run: make go-test-shared
   go-test-linux-amd64-musl:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de  # v1
         with:
-          toolchain: 1.88.0
-      - uses: actions/setup-go@v5
+          toolchain: 1.94.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version: "1.22.x"
       - name: Install toolchain
@@ -60,11 +65,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y musl-tools
           rustup target add x86_64-unknown-linux-musl
-          cargo install cbindgen --locked
+          cargo install cbindgen@0.29.4 --locked
       - name: Build musl static lib and run Go tests
         run: |
           make cbindgen
-          cargo build --release -p docprims-ffi --target x86_64-unknown-linux-musl
+          cargo build --release -p docprims-ffi --target x86_64-unknown-linux-musl --locked
           mkdir -p bindings/go/docprims/include
           cp ffi/docprims-ffi/docprims.h bindings/go/docprims/include/docprims.h
           mkdir -p bindings/go/docprims/lib/local/linux-amd64-musl

@@ -3,18 +3,26 @@ on:
   push:
     branches: ["main"]
   pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de  # v1
         with:
+          toolchain: 1.94.1
           components: rustfmt, clippy
       - name: Install cargo-deny
-        run: cargo install cargo-deny@0.18.3 --locked
+        run: cargo install cargo-deny@0.20.2 --locked
+      - name: Install cargo-audit
+        run: cargo install cargo-audit@0.22.2 --locked
       - name: Install cbindgen
-        run: cargo install cbindgen --locked
+        run: cargo install cbindgen@0.29.4 --locked
       - name: Quality gates
         run: make check
       - name: Verify generated C header is up to date
@@ -22,11 +30,54 @@ jobs:
           make cbindgen
           git diff --exit-code ffi/docprims-ffi/docprims.h
           diff -u ffi/docprims-ffi/docprims.h bindings/go/docprims/include/docprims.h
+  publish-check:
+    name: publish-check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de  # v1
+        with:
+          toolchain: 1.94.1
+      - name: Verify release tooling dependencies
+        run: |
+          python3 -c 'import sys; assert sys.version_info >= (3, 11)'
+          command -v jq
+          command -v gpg
+      - name: Install checksum-pinned Decernor for release tests
+        run: |
+          tool_dir="$(mktemp -d "$RUNNER_TEMP/decernor.XXXXXX")"
+          archive="$(awk '{ print $2 }' config/release/decernor-ci-sha256.txt)"
+          version="${archive#decernor_}"
+          version="${version%%_*}"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \
+            "https://github.com/3leaps/decernor/releases/download/v${version}/${archive}" \
+            --output "$tool_dir/$archive"
+          (cd "$tool_dir" && sha256sum --check "$GITHUB_WORKSPACE/config/release/decernor-ci-sha256.txt")
+          tar -xzf "$tool_dir/$archive" -C "$tool_dir" decernor
+          echo "DOCPRIMS_DECERNOR_BIN=$tool_dir/decernor" >> "$GITHUB_ENV"
+      - name: Package workspace
+        run: make release-check
+      - name: Release tooling tests
+        run: make release-tooling-test
+  msrv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de  # v1
+        with:
+          toolchain: 1.88.0
+      - name: Build and test on MSRV
+        run: make msrv
   test-go-vendored:
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
         with:
           go-version: "1.22.x"
       - name: Run Go tests (vendored libs)

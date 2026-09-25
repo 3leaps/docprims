@@ -10,23 +10,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.5] - 2026-07-07
+## [0.2.0] - 2026-09-25
 
 ### Added
 
-- **npm trusted publishing runtime guard**: Added `scripts/check-npm-trusted-publish-runtime.sh` and wired it into `make lint` plus `npm-publish-prereqs-check`.
+- **`docprims` crate**: The library's entry point. `extract_file` and `extract_bytes` return the `extract/v0` structure and choose the parser from the path or source URI extension, or from an explicit `Format` (`extract_file_as`, `extract_bytes_as`); content is never inspected to choose a parser. Each format is a feature (`markdown`, `html`, `xml`, `docx`, `xlsx`, `pptx`, grouped as `text` and `ooxml`; all enabled by default). `docprims-core`, `docprims-text` and `docprims-ooxml` carry no stability promise beyond what `docprims` re-exports.
+- **npm trusted publishing runtime guard**: `scripts/check-npm-trusted-publish-runtime.sh`, run by `make lint` and `make npm-publish-prereqs-check`.
 
 ### Changed
 
-- **Rust MSRV**: Raised the workspace minimum supported Rust version to 1.88.0.
-- **TypeScript runtime floor**: Raised `@3leaps/docprims` and repo tooling Node.js engine requirements to Node 22 or newer.
-- **TypeScript workflows**: Moved TypeScript binding CI, release validation, and N-API prebuild workflows to Node 22 validation; npm publish remains on Node 24 with explicit Node >=22.14.0 and npm >=11.5.1 trusted-publishing checks.
-- **Repository guidance**: Refreshed agent guidance, canonical documentation pointers, YAML linting configuration, and local-only planning artifact conventions.
-- **README install guidance**: Replaced the unpublished CLI crate install command with repo-root `cargo install --path crates/docprims-cli` guidance.
+- **BREAKING: `DocprimsError`, `DocprimsQualityStatus` and `DocprimsContainerKind` are `#[non_exhaustive]`**: Matches on them outside docprims need a wildcard arm. `DocprimsQualityStatus` implements `PartialEq` and `Eq`.
+- **CLI**: The `docprims` command-line tool is now built from the `docprims` crate with the `cli` feature (`cargo install docprims --features cli`). The binary name, commands and output are unchanged.
+- **C, Go and TypeScript bindings** extract through the `docprims` crate; results and error codes are unchanged.
+- **Dependencies**: quick-xml 0.42, zip 8, scraper 0.27 and rsfulmen 0.2. The TypeScript binding builds with napi-rs 3 and TypeScript 7.
+- **Rust MSRV**: The workspace minimum supported Rust version is 1.88.0.
+- **TypeScript runtime floor**: `@3leaps/docprims` requires Node.js 22 or newer. npm publishing checks for Node >=22.14.0 and npm >=11.5.1.
+
+### Removed
+
+- **BREAKING: `--timeout-ms` and `ExtractOptions::timeout_ms`**: The extraction timeout option was accepted but never applied, and is removed. Passing `--timeout-ms` to the CLI is now a usage error.
+- **BREAKING: `ExtractOptions`**: Removed from `docprims-core`; none of its fields were used. Limits are set with `ExtractLimits`.
+- **BREAKING: `docprims-cli` crate**: Replaced by the `docprims` crate's `cli` feature.
+- **BREAKING: `docprims_ooxml::common`**: No longer public.
 
 ### Fixed
 
-- **Current stable clippy compatibility**: Updated parser match handling flagged by newer clippy lints.
+- **Extracted text character set**: Extracted text from every format (Markdown, HTML, XML, DOCX, XLSX, PPTX) contains only XML 1.0 characters, excluding DEL and C1 controls (U+007F–U+009F); other characters are dropped before block byte ranges are computed. Markdown and HTML keep their parsers' U+FFFD replacement for NUL. Numeric character references (`&#233;`, `&#x1F600;`) resolve under the same rule, including in DOCX, XLSX and PPTX, which previously dropped all numeric references. Extracted text changes for documents that contain such characters or references.
+- **OOXML decompression limits**: The decompressed size of DOCX, XLSX and PPTX parts is now bounded by the bytes actually read, not the size declared in the archive: 100 MiB per part and 400 MiB across all parts of one archive. Exceeding either limit is a `ResourceLimit` error.
+- **Output limits**: When `max_output_bytes` truncates extraction, the result no longer contains an empty block or a trailing separator.
+- **Current stable clippy compatibility**: Parser match handling updated for newer clippy lints.
 
 ## [0.1.4] - 2026-01-31
 

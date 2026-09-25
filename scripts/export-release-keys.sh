@@ -1,44 +1,47 @@
 #!/usr/bin/env bash
-# Export public signing keys to release directory
-# Usage: export-release-keys.sh [dir]
-#
-# Environment variables:
-#   DOCPRIMS_MINISIGN_PUB  - Path to minisign public key (or derives from DOCPRIMS_MINISIGN_KEY)
-#   DOCPRIMS_MINISIGN_KEY  - Path to minisign secret key (used to derive public key location)
-#   DOCPRIMS_PGP_KEY_ID    - PGP key ID for optional export (optional)
-#   DOCPRIMS_GPG_HOMEDIR   - Custom GPG home directory (optional)
+# Export explicit public verification material and prove it verifies this cut.
+
 set -euo pipefail
 
-DIR=${1:-dist/release}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=release-common.sh
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/release-common.sh"
 
-if [ ! -d "$DIR" ]; then
-  echo "Error: Directory $DIR does not exist"
+directory="${1:-dist/release}"
+require_release_guard 1 >/dev/null
+release_tag >/dev/null
+"$SCRIPT_DIR/validate-release-assets.sh" \
+  "$directory" signed-without-keys >/dev/null
+: "${DOCPRIMS_MINISIGN_PUB:?load the approved minisign public key}"
+[[ -f "$DOCPRIMS_MINISIGN_PUB" && ! -L "$DOCPRIMS_MINISIGN_PUB" ]] || {
+  echo "error: configured minisign public key is unavailable" >&2
   exit 1
+}
+grep -q '^untrusted comment:' "$DOCPRIMS_MINISIGN_PUB" || {
+  echo "error: minisign public key has an unexpected format" >&2
+  exit 1
+}
+grep -qi 'secret' "$DOCPRIMS_MINISIGN_PUB" && {
+  echo "error: refusing public material containing a secret marker" >&2
+  exit 1
+}
+
+cp "$DOCPRIMS_MINISIGN_PUB" "$directory/docprims-minisign.pub"
+chmod 0644 "$directory/docprims-minisign.pub"
+
+if [[ -n "${DOCPRIMS_PGP_KEY_ID:-}" || -n "${DOCPRIMS_GPG_HOMEDIR:-}" ]]; then
+  require_complete_pgp_config
+  gpg --homedir "$DOCPRIMS_GPG_HOMEDIR" --batch --armor \
+    --export "$DOCPRIMS_PGP_KEY_ID" \
+    >"$directory/docprims-release-signing-key.asc"
+  [[ -s "$directory/docprims-release-signing-key.asc" ]] || {
+    echo "error: PGP public-key export is empty" >&2
+    exit 1
+  }
 fi
 
-echo "Exporting public keys to $DIR..."
-
-MINISIGN_PUB="${DOCPRIMS_MINISIGN_PUB:-}"
-if [ -z "$MINISIGN_PUB" ] && [ -n "${DOCPRIMS_MINISIGN_KEY:-}" ]; then
-  MINISIGN_PUB="${DOCPRIMS_MINISIGN_KEY%.key}.pub"
-fi
-
-if [ -n "$MINISIGN_PUB" ] && [ -f "$MINISIGN_PUB" ]; then
-  cp "$MINISIGN_PUB" "$DIR/docprims-minisign.pub"
-  echo "[ok] Exported $DIR/docprims-minisign.pub"
-else
-  echo "[!!] Minisign public key not found"
-  echo "Set DOCPRIMS_MINISIGN_PUB or ensure .pub file exists alongside .key"
-fi
-
-if [ -n "${DOCPRIMS_PGP_KEY_ID:-}" ]; then
-  GPG_OPTS=()
-  if [ -n "${DOCPRIMS_GPG_HOMEDIR:-}" ]; then
-    GPG_OPTS+=("--homedir" "$DOCPRIMS_GPG_HOMEDIR")
-  fi
-
-  gpg "${GPG_OPTS[@]}" --armor --export "$DOCPRIMS_PGP_KEY_ID" >"$DIR/docprims-release-signing-key.asc"
-  echo "[ok] Exported $DIR/docprims-release-signing-key.asc"
-else
-  echo "[--] PGP key export skipped (DOCPRIMS_PGP_KEY_ID not set)"
-fi
+"$SCRIPT_DIR/verify-public-keys.sh" "$directory" >/dev/null
+"$SCRIPT_DIR/verify-signatures.sh" "$directory" >/dev/null
+"$SCRIPT_DIR/validate-release-assets.sh" "$directory" signed >/dev/null
+echo "[ok] public verification keys exported and proven"

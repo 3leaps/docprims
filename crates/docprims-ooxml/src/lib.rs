@@ -2,6 +2,10 @@
 //!
 //! Office Open XML (OOXML) text extraction for docprims.
 //!
+//! Most users should depend on the [`docprims`](https://docs.rs/docprims)
+//! crate, which is the supported entry point. This crate's API carries no
+//! stability promise beyond what `docprims` re-exports.
+//!
 //! This crate extracts text from:
 //! - DOCX (Word documents)
 //! - XLSX (Excel spreadsheets)
@@ -22,12 +26,16 @@
 //! println!("{}", text.content);
 //! ```
 
+#![cfg_attr(
+    not(any(feature = "docx", feature = "xlsx", feature = "pptx")),
+    allow(unused_imports)
+)]
 use docprims_core::{DocprimsError, DocprimsExtract, ExtractLimits, ExtractedText, Result};
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::Path;
 
-pub mod common;
+pub(crate) mod common;
 
 #[cfg(feature = "docx")]
 pub mod docx;
@@ -61,9 +69,14 @@ pub enum OoxmlFormat {
 pub fn extract(path: impl AsRef<Path>) -> Result<ExtractedText> {
     let path = path.as_ref();
     match detect_format(path) {
+        #[cfg(feature = "docx")]
         Some(OoxmlFormat::Docx) => extract_docx(path),
+        #[cfg(feature = "xlsx")]
         Some(OoxmlFormat::Xlsx) => extract_xlsx(path),
+        #[cfg(feature = "pptx")]
         Some(OoxmlFormat::Pptx) => extract_pptx(path),
+        #[allow(unreachable_patterns)]
+        Some(format) => Err(DocprimsError::UnsupportedFormat(format!("{format:?}"))),
         None => Err(DocprimsError::UnknownFormat(path.display().to_string())),
     }
 }
@@ -195,9 +208,12 @@ pub fn extract_pptx_v0_reader<R: Read + std::io::Seek>(
 }
 
 #[cfg(test)]
+#[cfg_attr(
+    not(all(feature = "docx", feature = "xlsx", feature = "pptx")),
+    allow(dead_code)
+)]
 pub(crate) mod test_support {
     use docprims_core::DocprimsExtract;
-    use jsonschema::Resource;
     use std::io::{Cursor, Write};
     use zip::write::SimpleFileOptions;
 
@@ -217,20 +233,26 @@ pub(crate) mod test_support {
         ))
         .unwrap();
 
-        let validator = jsonschema::draft202012::options()
-            .with_resources([
-                (
+        let validator = {
+            let registry = jsonschema::Registry::new()
+                .add(
                     "https://schemas.3leaps.dev/docprims/extract/v0/docprims-block.schema.json",
-                    Resource::from_contents(block_schema).unwrap(),
-                ),
-                (
+                    block_schema,
+                )
+                .unwrap()
+                .add(
                     "https://schemas.3leaps.dev/docprims/extract/v0/docprims-location.schema.json",
-                    Resource::from_contents(loc_schema).unwrap(),
-                ),
-            ]
-            .into_iter())
-            .build(&root_schema)
-            .unwrap();
+                    loc_schema,
+                )
+                .unwrap()
+                .prepare()
+                .unwrap();
+            jsonschema::draft202012::options()
+                .offline()
+                .with_registry(&registry)
+                .build(&root_schema)
+                .unwrap()
+        };
 
         let value = serde_json::to_value(extract).unwrap();
         let errors: Vec<_> = validator.iter_errors(&value).collect();

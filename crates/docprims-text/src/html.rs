@@ -167,6 +167,8 @@ fn extract_block_text(el: &ElementRef<'_>) -> String {
         }
 
         if let Some(t) = node.value().as_text() {
+            let t = docprims_core::xml::retain_output_chars(t.to_string());
+            let t = t.as_str();
             if is_pre {
                 out.push_str(t);
             } else {
@@ -260,6 +262,13 @@ pub fn extract_v0_str(
         } else {
             text
         };
+        if text.is_empty() {
+            // Nothing fits: drop this block's separator rather than emit an empty block.
+            if start > 0 {
+                doc_text.pop();
+            }
+            break;
+        }
         doc_text.push_str(&text);
         let end = doc_text.len();
 

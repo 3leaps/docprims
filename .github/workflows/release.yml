@@ -1,35 +1,92 @@
+# Build the exact release asset set. A tag push opens an unsigned draft
+# release; a manual run builds and validates the same set without releasing.
+# Signing keys remain local to the maintainer ceremony.
 name: Release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 env:
   CARGO_TERM_COLOR: always
   MACOSX_DEPLOYMENT_TARGET: "11.0"
 jobs:
-  validate-version:
-    name: Validate Version
+  validate:
+    name: Validate version and package set
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.version.outputs.version }}
+      commit: ${{ steps.release.outputs.commit }}
+      version: ${{ steps.release.outputs.version }}
+    defaults:
+      run:
+        shell: bash
     steps:
-      - uses: actions/checkout@v4
-      - name: Validate VERSION matches tag
-        id: version
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          # The strict tag guard fetches origin/main in this read-only job.
+          persist-credentials: true
+      - name: Install Rust 1.94.1
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de  # v1
+        with:
+          toolchain: 1.94.1
+      - name: Bind annotated tag to main
+        if: github.event_name == 'push'
+        env:
+          DOCPRIMS_RELEASE_TAG: ${{ github.ref_name }}
+          DOCPRIMS_REQUIRE_TAG: '1'
+        run: ./scripts/release-guard-tag-version.sh
+      - name: Record commit and version
+        id: release
         run: |
-          FILE_VERSION=$(cat VERSION)
-          TAG_VERSION=${GITHUB_REF_NAME#v}
-          if [ "$FILE_VERSION" != "$TAG_VERSION" ]; then
-            echo "VERSION mismatch: file=$FILE_VERSION tag=$TAG_VERSION"
-            exit 1
-          fi
-          echo "version=$FILE_VERSION" >> "$GITHUB_OUTPUT"
-          echo "Version validated: $FILE_VERSION"
+          set -euo pipefail
+          ./scripts/release-guard-tag-version.sh
+          printf 'commit=%s\n' "$(git rev-parse HEAD)" >>"$GITHUB_OUTPUT"
+          printf 'version=%s\n' "$(cat VERSION)" >>"$GITHUB_OUTPUT"
+      - name: Verify package archives without publishing
+        run: make release-check
+  verify-signature:
+    name: Verify pinned tag signature and publication policy
+    if: github.event_name == 'push'
+    needs: validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout exact signed tag and committed pin
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify committed pin and GitHub signature
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DOCPRIMS_RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          ./scripts/verify-pinned-tag.sh
+          EXPECTED_OBJECT="$(git rev-parse "refs/tags/$DOCPRIMS_RELEASE_TAG")"
+          tag_json="$(gh api "repos/3leaps/docprims/git/tags/$EXPECTED_OBJECT")"
+          jq -e --arg tag "$DOCPRIMS_RELEASE_TAG" --arg commit "$(git rev-parse HEAD)" \
+            '.tag == $tag and .object.type == "commit" and .object.sha == $commit and
+             .verification.verified == true and .verification.reason == "valid"' \
+            <<<"$tag_json" >/dev/null
+          ./scripts/release-guard-tag-ruleset.sh --read-only --verify-tag-attestation "$EXPECTED_OBJECT"
   verify-go-bindings-assets:
     name: Verify Go Binding Assets
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    needs: validate-version
+    needs: validate
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
       - name: Verify Go module contains prebuilt libs
         run: |
           set -euo pipefail
@@ -88,36 +145,40 @@ jobs:
 
           echo "Go binding assets verified."
   build-linux:
-    name: Build Linux
+    name: CLI (${{ matrix.platform }})
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/fulmenhq/goneat-tools-runner-glibc:v0.3.1
+      # goneat-tools-runner-glibc v0.5.6
+      image: ghcr.io/fulmenhq/goneat-tools-runner-glibc@sha256:afcffa00283c765928dfef40966c282f2ca190653cf4443f634cb8f67c1d51ab
       options: --user root
-    needs: validate-version
+    needs: validate
     strategy:
+      fail-fast: false
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
             glibc: "2.17"
-            artifact_suffix: linux-amd64
+            platform: linux-amd64
           - target: x86_64-unknown-linux-musl
             glibc: ""
-            artifact_suffix: linux-amd64-musl
+            platform: linux-amd64-musl
           - target: aarch64-unknown-linux-gnu
             glibc: "2.17"
-            artifact_suffix: linux-arm64
+            platform: linux-arm64
           - target: aarch64-unknown-linux-musl
             glibc: ""
-            artifact_suffix: linux-arm64-musl
+            platform: linux-arm64-musl
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
       - name: Build CLI
         run: |
+          target="${{ matrix.target }}"
           if [ -n "${{ matrix.glibc }}" ]; then
-            cargo zigbuild --release --target ${{ matrix.target }}.${{ matrix.glibc }} -p docprims-cli
-          else
-            cargo zigbuild --release --target ${{ matrix.target }} -p docprims-cli
+            target="${target}.${{ matrix.glibc }}"
           fi
+          cargo zigbuild --release --locked --target "$target" -p docprims --features cli
       - name: Package CLI
         shell: bash
         run: |
@@ -145,48 +206,71 @@ jobs:
           mkdir -p dist/cli
           cp "target/${TARGET_DIR}/release/docprims" dist/cli/docprims
           cp LICENSE-MIT LICENSE-APACHE dist/cli/
-          VERSION=${{ needs.validate-version.outputs.version }}
-          tar -czf docprims-${VERSION}-${{ matrix.artifact_suffix }}.tar.gz -C dist/cli .
+          VERSION=${{ needs.validate.outputs.version }}
+          tar -czf "docprims-${VERSION}-${{ matrix.platform }}.tar.gz" -C dist/cli \
+            docprims LICENSE-APACHE LICENSE-MIT
       - name: Upload CLI artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: cli-${{ matrix.artifact_suffix }}
-          path: docprims-${{ needs.validate-version.outputs.version }}-${{ matrix.artifact_suffix }}.tar.gz
+          name: cli-${{ matrix.platform }}
+          path: docprims-${{ needs.validate.outputs.version }}-${{ matrix.platform }}.tar.gz
+          if-no-files-found: error
+          retention-days: 7
   build-macos:
-    name: Build macOS
+    name: CLI (${{ matrix.platform }})
     runs-on: macos-14
-    needs: validate-version
-    env:
-      MACOSX_DEPLOYMENT_TARGET: "11.0"
+    needs: validate
+    strategy:
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            platform: darwin-arm64
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          targets: aarch64-apple-darwin
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de  # v1
+        with:
+          toolchain: 1.94.1
+          targets: ${{ matrix.target }}
       - name: Build CLI
-        run: cargo build --release --target aarch64-apple-darwin -p docprims-cli
+        run: cargo build --release --target ${{ matrix.target }} -p docprims --features cli --locked
       - name: Package CLI
         run: |
+          set -euo pipefail
           mkdir -p dist/cli
-          cp target/aarch64-apple-darwin/release/docprims dist/cli/docprims
+          cp target/${{ matrix.target }}/release/docprims dist/cli/docprims
           cp LICENSE-MIT LICENSE-APACHE dist/cli/
-          tar -czf docprims-${{ needs.validate-version.outputs.version }}-darwin-arm64.tar.gz -C dist/cli .
+          # No AppleDouble or extended-attribute entries in the archive.
+          COPYFILE_DISABLE=1 tar --no-mac-metadata -czf \
+            "docprims-${{ needs.validate.outputs.version }}-${{ matrix.platform }}.tar.gz" -C dist/cli \
+            docprims LICENSE-APACHE LICENSE-MIT
       - name: Upload CLI artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: cli-darwin-arm64
-          path: docprims-${{ needs.validate-version.outputs.version }}-darwin-arm64.tar.gz
+          name: cli-${{ matrix.platform }}
+          path: docprims-${{ needs.validate.outputs.version }}-${{ matrix.platform }}.tar.gz
+          if-no-files-found: error
+          retention-days: 7
   build-windows:
-    name: Build Windows
+    name: CLI (${{ matrix.platform }})
     runs-on: windows-latest
-    needs: validate-version
+    needs: validate
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-pc-windows-gnu
+            platform: windows-amd64
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          targets: x86_64-pc-windows-gnu
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de  # v1
+        with:
+          toolchain: 1.94.1
+          targets: ${{ matrix.target }}
       - name: Install MinGW
-        uses: msys2/setup-msys2@v2
+        uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884  # v2.32.0
         with:
           msystem: MINGW64
           update: true
@@ -194,114 +278,169 @@ jobs:
           path-type: inherit
       - name: Build CLI (GNU target)
         shell: msys2 {0}
-        run: cargo build --release --target x86_64-pc-windows-gnu -p docprims-cli
+        run: cargo build --release --target ${{ matrix.target }} -p docprims --features cli --locked
       - name: Package CLI
         shell: bash
         run: |
+          set -euo pipefail
           mkdir -p dist/cli
-          cp target/x86_64-pc-windows-gnu/release/docprims.exe dist/cli/docprims.exe
+          cp target/${{ matrix.target }}/release/docprims.exe dist/cli/docprims.exe
           cp LICENSE-MIT LICENSE-APACHE dist/cli/
-          cd dist/cli && 7z a -tzip ../../docprims-${{ needs.validate-version.outputs.version }}-windows-amd64.zip .
+          cd dist/cli && 7z a -tzip "../../docprims-${{ needs.validate.outputs.version }}-${{ matrix.platform }}.zip" \
+            docprims.exe LICENSE-APACHE LICENSE-MIT
       - name: Upload CLI artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: cli-windows-amd64
-          path: docprims-${{ needs.validate-version.outputs.version }}-windows-amd64.zip
+          name: cli-${{ matrix.platform }}
+          path: docprims-${{ needs.validate.outputs.version }}-${{ matrix.platform }}.zip
+          if-no-files-found: error
+          retention-days: 7
   cbindgen:
     name: Generate C Header
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/fulmenhq/goneat-tools-runner-glibc:v0.3.1
+      # goneat-tools-runner-glibc v0.5.6
+      image: ghcr.io/fulmenhq/goneat-tools-runner-glibc@sha256:afcffa00283c765928dfef40966c282f2ca190653cf4443f634cb8f67c1d51ab
       options: --user root
-    needs: validate-version
+    needs: validate
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
       - name: Generate C header
         run: cbindgen --config cbindgen.toml --crate docprims-ffi --output docprims.h
       - name: Upload header
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: c-header
           path: docprims.h
-  publish:
-    name: Publish Release
+          if-no-files-found: error
+          retention-days: 7
+  sbom:
+    name: CycloneDX SBOM
+    needs: validate
     runs-on: ubuntu-latest
-    needs:
-      - validate-version
-      - verify-go-bindings-assets
-      - build-linux
-      - build-macos
-      - build-windows
-      - cbindgen
-    permissions:
-      contents: write
+    defaults:
+      run:
+        shell: bash
     steps:
-      - uses: actions/checkout@v4
-      - name: Download all CLI artifacts
-        uses: actions/download-artifact@v4.1.3
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Generate SBOM with pinned Syft image
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --volume "$PWD:/src" \
+            --workdir /src \
+            anchore/syft@sha256:f94e5d9fce1f2278491a8e3a63bd5f6ddb81fdfdbb8bf7a1637565c1d5344357 \
+            dir:. \
+            --output "cyclonedx-json=sbom-${{ needs.validate.outputs.version }}.cdx.json"
+          test -s "sbom-${{ needs.validate.outputs.version }}.cdx.json"
+      - name: Upload SBOM
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: sbom
+          path: sbom-${{ needs.validate.outputs.version }}.cdx.json
+          if-no-files-found: error
+          retention-days: 7
+  assemble:
+    name: Assemble and validate the exact asset set
+    needs: [validate, build-linux, build-macos, build-windows, cbindgen, sbom]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Download CLI archives
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
           pattern: cli-*
-          path: release-cli
+          path: dist/release
+          merge-multiple: true
       - name: Download C header
-        uses: actions/download-artifact@v4.1.3
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
           name: c-header
-          path: release-header
-      - name: Organize release files
-        run: |
-          mkdir -p release
-
-          # CLI archives
-          find release-cli -type f \( -name '*.tar.gz' -o -name '*.zip' \) -exec mv {} release/ \;
-
-          # Header
-          mv release-header/docprims.h release/
-
-          # Licenses
-          cp LICENSE-MIT LICENSE-APACHE release/
-
-          ls -la release/
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
+          path: dist/release
+      - name: Download SBOM
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
-          files: release/*
-          generate_release_notes: true
+          name: sbom
+          path: dist/release
+      - name: Assert exact unsigned inventory
+        env:
+          DOCPRIMS_RELEASE_TAG: v${{ needs.validate.outputs.version }}
+        run: |
+          set -euo pipefail
+          cp LICENSE-MIT LICENSE-APACHE dist/release/
+          ./scripts/validate-release-assets.sh dist/release base
+      - name: Upload release asset set
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: release-assets
+          path: dist/release
+          if-no-files-found: error
+          retention-days: 7
+  draft:
+    name: Create exact unsigned draft
+    if: github.event_name == 'push'
+    needs: [validate, verify-signature, verify-go-bindings-assets, assemble]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Download release asset set
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: release-assets
+          path: dist/release
+      - name: Assert exact unsigned inventory
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DOCPRIMS_RELEASE_TAG: ${{ github.ref_name }}
+          DOCPRIMS_REQUIRE_TAG: '1'
+        run: |
+          set -euo pipefail
+          auth_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 | tr -d '\n')"
+          git config --local http.https://github.com/.extraheader "$auth_header"
+          cleanup_credentials() {
+            git config --local --unset-all http.https://github.com/.extraheader || true
+          }
+          trap cleanup_credentials EXIT
+          ./scripts/release-guard-tag-version.sh
+          cleanup_credentials
+          trap - EXIT
+          ./scripts/validate-release-assets.sh dist/release base
+      - name: Refuse unsafe existing release state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DOCPRIMS_RELEASE_TAG: ${{ github.ref_name }}
+        run: ./scripts/check-draft-release.sh before
+      - name: Create draft GitHub release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64  # v3.0.3
+        with:
           draft: true
-          body: |
-            ## docprims v${{ needs.validate-version.outputs.version }}
-
-            GPL-free document text extraction primitives for Rust with Go bindings.
-
-            ### Installation
-
-            Download the appropriate archive for your platform and extract.
-
-            ### Verification
-
-            **Note:** This release is unsigned. Signed checksums will be uploaded after manual signing.
-
-            Once signed artifacts are available:
-            ```bash
-            # Verify checksum signature
-            minisign -Vm SHA256SUMS -p docprims-minisign.pub
-
-            # Verify file checksums
-            shasum -a 256 -c SHA256SUMS
-            ```
-
-            ### Platform Matrix
-
-            | Platform | CLI | Go Bindings |
-            |----------|-----|-------------|
-            | Linux x64 (glibc 2.17+) | `docprims-*-linux-amd64.tar.gz` | Supported |
-            | Linux x64 (musl) | `docprims-*-linux-amd64-musl.tar.gz` | Supported |
-            | Linux arm64 (glibc 2.17+) | `docprims-*-linux-arm64.tar.gz` | Supported |
-            | Linux arm64 (musl) | `docprims-*-linux-arm64-musl.tar.gz` | Supported |
-            | macOS arm64 | `docprims-*-darwin-arm64.tar.gz` | Supported |
-            | Windows x64 | `docprims-*-windows-amd64.zip` | Supported |
-
-            ### Go Bindings
-
-            ```bash
-            go get github.com/3leaps/docprims/bindings/go/docprims@v${{ needs.validate-version.outputs.version }}
-            ```
+          prerelease: false
+          target_commitish: ${{ needs.validate.outputs.commit }}
+          body_path: docs/releases/${{ github.ref_name }}.md
+          files: |
+            dist/release/*
+      - name: Verify exact draft state and remote inventory
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DOCPRIMS_RELEASE_TAG: ${{ github.ref_name }}
+        run: ./scripts/check-draft-release.sh after

@@ -1,0 +1,6 @@
+linux-amd64 tar.gz docprims
+linux-amd64-musl tar.gz docprims
+linux-arm64 tar.gz docprims
+linux-arm64-musl tar.gz docprims
+darwin-arm64 tar.gz docprims
+windows-amd64 zip docprims.exe

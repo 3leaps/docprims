@@ -2,6 +2,10 @@
 //!
 //! Text-based format extraction for docprims.
 //!
+//! Most users should depend on the [`docprims`](https://docs.rs/docprims)
+//! crate, which is the supported entry point. This crate's API carries no
+//! stability promise beyond what `docprims` re-exports.
+//!
 //! This crate extracts text from:
 //! - Markdown files
 //! - HTML documents
@@ -13,6 +17,10 @@
 //! - `html` - Enable HTML extraction (default)
 //! - `xml` - Enable XML extraction (default)
 
+#![cfg_attr(
+    not(any(feature = "markdown", feature = "html", feature = "xml")),
+    allow(unused_imports, dead_code)
+)]
 use docprims_core::{DocprimsExtract, ExtractLimits, ExtractedText, Result};
 use std::fs::File;
 use std::io::Read;
@@ -126,7 +134,6 @@ pub fn extract_xml_str(content: &str) -> Result<ExtractedText> {
 #[cfg(test)]
 pub(crate) mod test_support {
     use docprims_core::DocprimsExtract;
-    use jsonschema::Resource;
 
     pub(crate) fn assert_v0_schema_valid(extract: &DocprimsExtract) {
         let root_schema: serde_json::Value = serde_json::from_str(include_str!(
@@ -144,20 +151,26 @@ pub(crate) mod test_support {
         ))
         .unwrap();
 
-        let validator = jsonschema::draft202012::options()
-            .with_resources([
-                (
+        let validator = {
+            let registry = jsonschema::Registry::new()
+                .add(
                     "https://schemas.3leaps.dev/docprims/extract/v0/docprims-block.schema.json",
-                    Resource::from_contents(block_schema).unwrap(),
-                ),
-                (
+                    block_schema,
+                )
+                .unwrap()
+                .add(
                     "https://schemas.3leaps.dev/docprims/extract/v0/docprims-location.schema.json",
-                    Resource::from_contents(loc_schema).unwrap(),
-                ),
-            ]
-            .into_iter())
-            .build(&root_schema)
-            .unwrap();
+                    loc_schema,
+                )
+                .unwrap()
+                .prepare()
+                .unwrap();
+            jsonschema::draft202012::options()
+                .offline()
+                .with_registry(&registry)
+                .build(&root_schema)
+                .unwrap()
+        };
 
         let value = serde_json::to_value(extract).unwrap();
         let errors: Vec<_> = validator.iter_errors(&value).collect();
