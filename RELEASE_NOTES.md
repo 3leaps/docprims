@@ -10,25 +10,84 @@
 
 **Status:** Minor Release (library entry point, extraction fixes, dependency refresh)
 
-Adds the `docprims` crate as the library's entry point, fixes extraction edge cases, and refreshes dependencies and toolchains. Breaking for Rust users of the subcrates; bindings keep their results and error codes.
+### Summary
+
+v0.2.0 adds the `docprims` crate as the library's entry point, fixes several
+extraction edge cases, and updates dependencies and toolchains across the
+Rust crates and the C, Go and TypeScript bindings. It contains breaking
+changes for Rust users of the subcrates; bindings keep their results and
+error codes.
 
 ### Highlights
 
-- **`docprims` crate**: One dependency for all formats, a feature per format; the parser is chosen by extension or an explicit `Format`, never by content.
-- **CLI**: `cargo install docprims --features cli`; binary name, commands and output are unchanged.
-- **Extracted text character set**: XML 1.0 characters only, excluding DEL and C1 controls, on every format; numeric character references resolve in DOCX, XLSX and PPTX.
-- **OOXML decompression limits**: Enforced on bytes actually read, per part (100 MiB) and per archive (400 MiB).
-- **Output limits**: No empty block or trailing separator when `max_output_bytes` truncates.
-- **Toolchains**: MSRV 1.88.0; Node.js 22+; the TypeScript binding builds with napi-rs 3 and TypeScript 7.
+- **`docprims` crate**: One dependency for all formats, with a feature per format.
+- **Extracted text character set**: Every format emits only XML 1.0 characters, excluding DEL and C1 controls.
+- **Numeric character references** resolve in DOCX, XLSX and PPTX.
+- **OOXML decompression limits** are enforced on bytes actually read, per part and per archive.
+- **Output limits** never produce an empty block or a trailing separator.
+- **CLI** is installed with `cargo install docprims --features cli`.
+
+### Using the `docprims` crate
+
+```toml
+[dependencies]
+docprims = "0.2"
+```
+
+```rust
+use docprims::{extract_file, ExtractLimits};
+
+let result = extract_file("report.docx", ExtractLimits::default())?;
+println!("{}", result.document.text);
+```
+
+The parser is chosen from the file extension, or explicitly with
+`extract_file_as` / `extract_bytes_as` and a `Format`. Content is never
+inspected to choose a parser.
+
+Formats are features: `markdown`, `html`, `xml`, `docx`, `xlsx`, `pptx`,
+grouped as `text` and `ooxml`, all on by default. A Markdown-only build:
+
+```toml
+docprims = { version = "0.2", default-features = false, features = ["markdown"] }
+```
+
+`docprims-core`, `docprims-text` and `docprims-ooxml` are published as
+components of `docprims` and carry no stability promise beyond what
+`docprims` re-exports.
 
 ### Breaking Changes
 
-- `docprims-cli` crate removed (use the `docprims` crate's `cli` feature).
-- `--timeout-ms` / `ExtractOptions::timeout_ms` and `ExtractOptions` removed.
-- `docprims_ooxml::common` is private.
-- `DocprimsError`, `DocprimsQualityStatus` and `DocprimsContainerKind` are `#[non_exhaustive]`.
+| Change | Migration |
+|--------|-----------|
+| `docprims-cli` crate removed | `cargo install docprims --features cli` (same binary name, commands and output) |
+| `--timeout-ms` / `ExtractOptions::timeout_ms` removed (never applied) | Remove the flag or field |
+| `ExtractOptions` removed from `docprims-core` | Use `ExtractLimits` |
+| `docprims_ooxml::common` no longer public | Use `docprims::extract_*` |
+| `DocprimsError`, `DocprimsQualityStatus`, `DocprimsContainerKind` are `#[non_exhaustive]` | Add a wildcard arm to matches |
 
-See `docs/releases/v0.2.0.md` for usage and migration.
+### Extraction Changes
+
+Extracted text may differ from v0.1.x for documents that contain:
+
+- control characters, DEL or C1 controls (now dropped);
+- numeric character references in DOCX, XLSX or PPTX (now resolved);
+- output truncated by `max_output_bytes` (no empty final block).
+
+Block byte ranges are computed after characters are dropped, so they always
+index the emitted text.
+
+### Runtime Floors
+
+| Component | Floor |
+|-----------|-------|
+| Rust (MSRV) | 1.88.0 |
+| TypeScript package | Node.js 22+ |
+| npm trusted publishing | Node.js >=22.14.0 and npm >=11.5.1 |
+
+### Changelog
+
+See `CHANGELOG.md` for the full list of changes.
 
 ---
 
