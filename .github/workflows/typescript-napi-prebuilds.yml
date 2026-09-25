@@ -31,7 +31,7 @@ jobs:
         run: cargo install cargo-zigbuild --locked --version 0.23.4
       - name: Install Node dependencies
         working-directory: bindings/typescript/docprims
-        run: npm install --omit=optional
+        run: npm install
       - name: Build .node files (zig)
         working-directory: bindings/typescript/docprims
         shell: bash
@@ -72,7 +72,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: Install Node dependencies
         working-directory: bindings/typescript/docprims
-        run: npm install --omit=optional
+        run: npm install
       - name: Build .node file
         working-directory: bindings/typescript/docprims
         shell: bash
@@ -100,7 +100,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: Install Node dependencies
         working-directory: bindings/typescript/docprims
-        run: npm install --omit=optional
+        run: npm install
       - name: Build .node file
         working-directory: bindings/typescript/docprims
         shell: bash
@@ -128,7 +128,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: Install Node dependencies
         working-directory: bindings/typescript/docprims
-        run: npm install --omit=optional
+        run: npm install
       - name: Build .node file
         working-directory: bindings/typescript/docprims
         shell: pwsh
@@ -157,7 +157,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: Install Node dependencies
         working-directory: bindings/typescript/docprims
-        run: npm install --omit=optional
+        run: npm install
       - name: Build JS dist (root package)
         working-directory: bindings/typescript/docprims
         run: npm run clean && npm run build && npm run build:native

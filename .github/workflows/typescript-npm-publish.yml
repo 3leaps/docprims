@@ -234,11 +234,12 @@ jobs:
         working-directory: bindings/typescript/docprims
         run: |
           set -euo pipefail
-          # Use npm install instead of npm ci because:
-          # 1. Optional dependencies (platform packages) are being published in this workflow
-          # 2. They don't exist yet when we build the root package
-          # 3. We only need devDependencies for TypeScript compilation
-          npm install --omit=optional
+          # Use npm install instead of npm ci: the platform packages listed in
+          # optionalDependencies are published by this workflow, so they are not
+          # in the lock file and do not exist yet. npm install skips them. Do not
+          # pass --omit=optional: the TypeScript compiler binary is an optional
+          # dependency of typescript.
+          npm install
           npm run build
       - name: Publish (dry run)
         if: ${{ inputs.dry_run }}
