@@ -1,49 +1,49 @@
 #!/usr/bin/env bash
-# Verify that exported keys contain only public material (no secrets)
-# Usage: verify-public-keys.sh [dir]
+# Reject secret or malformed key material in the release set.
+
 set -euo pipefail
 
-DIR=${1:-dist/release}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/release-decernor.sh
+source "$SCRIPT_DIR/release-decernor.sh"
+resolve_release_decernor ceremony
+directory="${1:-dist/release}"
+minisign_public="$directory/docprims-minisign.pub"
 
-if [ ! -d "$DIR" ]; then
-  echo "Error: Directory $DIR does not exist"
+[[ -s "$minisign_public" && ! -L "$minisign_public" ]] || {
+  echo "error: exported minisign public key is missing or unsafe" >&2
+  exit 1
+}
+grep -q '^untrusted comment:' "$minisign_public" || {
+  echo "error: exported minisign public key is malformed" >&2
+  exit 1
+}
+if grep -qi 'secret' "$minisign_public"; then
+  echo "error: exported minisign material contains a secret marker" >&2
   exit 1
 fi
 
-cd "$DIR"
-
-ERRORS=0
-
-if [ -f "docprims-minisign.pub" ]; then
-  if grep -qi "secret" "docprims-minisign.pub"; then
-    echo "[!!] DANGER: docprims-minisign.pub may contain secret key material!"
-    ERRORS=$((ERRORS + 1))
-  elif grep -q "^untrusted comment:" "docprims-minisign.pub"; then
-    echo "[ok] docprims-minisign.pub appears to be a valid public key"
-  else
-    echo "[!!] docprims-minisign.pub has unexpected format"
-    ERRORS=$((ERRORS + 1))
-  fi
-else
-  echo "[--] docprims-minisign.pub not found"
+pgp_public="$directory/docprims-release-signing-key.asc"
+[[ -s "$pgp_public" && ! -L "$pgp_public" ]] || {
+  echo "error: exported PGP key is unsafe" >&2
+  exit 1
+}
+grep -q 'BEGIN PGP PUBLIC KEY BLOCK' "$pgp_public" || {
+  echo "error: exported PGP key is malformed" >&2
+  exit 1
+}
+if grep -q 'PRIVATE KEY BLOCK' "$pgp_public"; then
+  echo "error: exported PGP material contains a private key" >&2
+  exit 1
 fi
-
-if [ -f "docprims-release-signing-key.asc" ]; then
-  if grep -q "PRIVATE KEY BLOCK" "docprims-release-signing-key.asc"; then
-    echo "[!!] DANGER: docprims-release-signing-key.asc contains PRIVATE KEY!"
-    ERRORS=$((ERRORS + 1))
-  elif grep -q "PUBLIC KEY BLOCK" "docprims-release-signing-key.asc"; then
-    echo "[ok] docprims-release-signing-key.asc is a public key"
-  else
-    echo "[!!] docprims-release-signing-key.asc has unexpected format"
-    ERRORS=$((ERRORS + 1))
-  fi
-fi
-
-if [ $ERRORS -eq 0 ]; then
-  echo "[ok] Public key verification passed"
-  exit 0
-fi
-
-echo "[!!] CRITICAL: Found $ERRORS potential secret key exposures!"
-exit 1
+for ext in txt ndjson; do
+  [[ -s "$directory/expected-fingerprints.$ext" && ! -L "$directory/expected-fingerprints.$ext" ]] || {
+    echo 'error: staged public anchor is missing or unsafe' >&2
+    exit 1
+  }
+done
+"$RELEASE_DECERNOR_BIN" fingerprint verify \
+  --anchors "$directory/expected-fingerprints.txt" \
+  --anchors-ndjson "$directory/expected-fingerprints.ndjson" \
+  --gpg "$pgp_public" --minisign "$minisign_public" >/dev/null
+echo "[ok] exported public keys contain public material only"

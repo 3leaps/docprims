@@ -1,58 +1,33 @@
 #!/usr/bin/env bash
-# Generate SHA256SUMS and SHA512SUMS checksum manifests
-# Usage: generate-checksums.sh [dir]
-#
-# Creates checksums for all release artifacts (excludes signatures and checksum files)
+# Generate exact SHA256 and SHA512 manifests for one release.
+
 set -euo pipefail
 
-DIR=${1:-dist/release}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=release-common.sh
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/release-common.sh"
 
-if [ ! -d "$DIR" ]; then
-  echo "Error: Directory $DIR does not exist"
-  exit 1
-fi
+directory="${1:-dist/release}"
+require_release_guard 1 >/dev/null
+release_tag >/dev/null
+"$SCRIPT_DIR/validate-release-assets.sh" "$directory" signable >/dev/null
 
-cd "$DIR"
+mapfile_compat() {
+  local output_name="$1"
+  shift
+  local values=()
+  while IFS= read -r value; do values+=("$value"); done < <("$@")
+  eval "$output_name=(\"\${values[@]}\")"
+}
 
-echo "Generating checksums in $DIR..."
-
-CHECKSUM_PATTERNS=(
-  '*.tar.gz'
-  '*.zip'
-  '*.h'
-  '*.a'
-  '*.lib'
-  '*.so'
-  '*.dylib'
-  '*.dll'
-  '*.json'
-  'LICENSE-*'
-  'release-notes-*.md'
+assets=()
+mapfile_compat assets release_signable_assets
+(
+  cd "$directory"
+  printf '%s\n' "${assets[@]}" | LC_ALL=C sort | xargs shasum -a 256 >SHA256SUMS
+  printf '%s\n' "${assets[@]}" | LC_ALL=C sort | xargs shasum -a 512 >SHA512SUMS
 )
+"$SCRIPT_DIR/validate-release-assets.sh" "$directory" checksummed >/dev/null
 
-FIND_ARGS=()
-for pattern in "${CHECKSUM_PATTERNS[@]}"; do
-  if [ ${#FIND_ARGS[@]} -gt 0 ]; then
-    FIND_ARGS+=("-o")
-  fi
-  FIND_ARGS+=("-name" "$pattern")
-done
-
-find . -maxdepth 1 -type f \( "${FIND_ARGS[@]}" \) \
-  ! -name 'SHA*' \
-  ! -name '*.minisig' \
-  ! -name '*.asc' \
-  ! -name '*.pub' \
-  -print0 | sort -z | xargs -0 shasum -a 256 >SHA256SUMS
-
-echo "Generated SHA256SUMS"
-
-find . -maxdepth 1 -type f \( "${FIND_ARGS[@]}" \) \
-  ! -name 'SHA*' \
-  ! -name '*.minisig' \
-  ! -name '*.asc' \
-  ! -name '*.pub' \
-  -print0 | sort -z | xargs -0 shasum -a 512 >SHA512SUMS
-
-echo "Generated SHA512SUMS"
-echo "[ok] Checksums generated"
+echo "[ok] exact SHA256 and SHA512 manifests generated"

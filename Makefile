@@ -11,7 +11,8 @@
 .PHONY: all help bootstrap bootstrap-force tools check test fmt lint build clean version install
 .PHONY: precommit prepush deps-check audit deny miri msrv fmt-check npm-publish-prereqs-check
 .PHONY: build-release build-ffi cbindgen
-.PHONY: release-clean release-download release-checksums release-sign
+.PHONY: release-clean release-download release-checksums release-sign release-tag release-push-tag
+.PHONY: release-verify-tag release-verify-remote-tag release-insert-anchors
 .PHONY: release-export-keys release-verify-checksums release-verify-signatures
 .PHONY: release-verify-keys release-notes release-upload release
 .PHONY: build-local-go go-test go-test-shared
@@ -23,6 +24,8 @@
 # -----------------------------------------------------------------------------
 # Configuration
 # -----------------------------------------------------------------------------
+
+.NOTPARALLEL: release
 
 # Version from VERSION file (SSOT)
 VERSION := $(shell cat VERSION 2>/dev/null || echo "dev")
@@ -437,16 +440,22 @@ release-crates-verify: ## Wait for the released version on crates.io and verify 
 release-guard-tag-version: ## Validate the canonical release tag
 	@./scripts/release-guard-tag-version.sh
 
-release-tooling-test: ## Run release guard, crate, version and notes tests
+release-tooling-test: ## Run release guard, signing, asset, crate, version and notes tests
+	@./scripts/release-decernor.test.sh
+	@./scripts/release-tag-controls.test.sh
+	@./scripts/verify-pinned-tag.test.sh
 	@./scripts/release-crates.test.sh
 	@./scripts/release-crates-verify.test.sh
 	@./scripts/release-guard-tag-version.test.sh
+	@./scripts/release-assets.test.sh
+	@./scripts/release-github-state.test.sh
+	@./scripts/release-safety.test.sh
 	@./scripts/check-version.test.sh
 	@./scripts/check-release-notes.test.sh
-	@./scripts/release-checklist.test.sh
 	@echo "[ok] Release tooling tests passed"
 
 release-preflight: ## Verify clean-tree pre-tag requirements
+	@./scripts/validate-release-anchors.sh
 	@echo "Running release preflight checks..."
 	@if [ -n "$$(git status --porcelain 2>/dev/null)" ]; then \
 		echo "[!!] Working tree not clean - commit or stash changes first"; \
@@ -468,91 +477,82 @@ release-preflight: ## Verify clean-tree pre-tag requirements
 	@echo "[ok] All preflight checks passed - ready to tag v$(VERSION)"
 
 # -----------------------------------------------------------------------------
-# Release Workflow
+# Release Ceremony (maintainer, local keys; see RELEASE_CHECKLIST.md)
 # -----------------------------------------------------------------------------
 #
-# Manual signing workflow (CI builds unsigned, maintainer signs locally):
-#
-# 1. CI creates draft release on tag push (release workflow)
-# 2. Download artifacts: make release-download
-# 3. Generate checksums: make release-checksums
-# 4. Sign checksums: make release-sign (requires DOCPRIMS_MINISIGN_KEY)
-# 5. Export public keys: make release-export-keys
-# 6. Verify everything: make release-verify
-# 7. Upload signed artifacts: make release-upload
+# CI builds the exact unsigned asset set and opens a draft release on a signed
+# tag push. The maintainer signs checksum manifests locally and uploads them.
+# Every target takes the tag from DOCPRIMS_RELEASE_TAG only.
 
-DIST_RELEASE := dist/release
-DOCPRIMS_RELEASE_TAG ?= $(shell git describe --tags --abbrev=0 2>/dev/null || echo v$(shell cat VERSION))
+RELEASE_DIR := $(CURDIR)/dist/release
 
-# Signing keys (set these environment variables)
-DOCPRIMS_MINISIGN_KEY ?=
-DOCPRIMS_MINISIGN_PUB ?=
-DOCPRIMS_PGP_KEY_ID ?=
-DOCPRIMS_GPG_HOMEDIR ?=
+release-tag: ## Create and verify a local signed version tag
+	@./scripts/release-tag.sh
 
-release-clean: ## Remove dist/release contents
-	@echo "Cleaning release directory..."
-	rm -rf $(DIST_RELEASE)
-	@echo "[ok] Release directory cleaned"
+release-push-tag: ## Publish and verify the signed version tag
+	@./scripts/release-push-tag.sh
 
-release-download: ## Download release assets from GitHub
-	@if [ -z "$(DOCPRIMS_RELEASE_TAG)" ] || [ "$(DOCPRIMS_RELEASE_TAG)" = "v" ]; then \
-		echo "Error: No release tag found. Set DOCPRIMS_RELEASE_TAG=vX.Y.Z"; \
-		exit 1; \
-	fi
-	./scripts/download-release-assets.sh $(DOCPRIMS_RELEASE_TAG) $(DIST_RELEASE)
+release-verify-tag: ## Verify the tag using only the committed public pin
+	@./scripts/release-verify-tag.sh
 
-release-checksums: ## Generate SHA256SUMS and SHA512SUMS
-	./scripts/generate-checksums.sh $(DIST_RELEASE)
+release-verify-remote-tag: ## Compare local and remote tag objects and GitHub verification
+	@./scripts/release-verify-remote-tag.sh
 
-release-sign: ## Sign checksum manifests (requires DOCPRIMS_MINISIGN_KEY)
-	@if [ -z "$(DOCPRIMS_MINISIGN_KEY)" ]; then \
-		echo "Error: DOCPRIMS_MINISIGN_KEY not set"; \
-		echo ""; \
-		echo "Set the path to your minisign secret key:"; \
-		echo "  export DOCPRIMS_MINISIGN_KEY=/path/to/docprims.key"; \
-		exit 1; \
-	fi
-	DOCPRIMS_MINISIGN_KEY=$(DOCPRIMS_MINISIGN_KEY) \
-	DOCPRIMS_PGP_KEY_ID=$(DOCPRIMS_PGP_KEY_ID) \
-	DOCPRIMS_GPG_HOMEDIR=$(DOCPRIMS_GPG_HOMEDIR) \
-	./scripts/sign-release-assets.sh $(DOCPRIMS_RELEASE_TAG) $(DIST_RELEASE)
+release-insert-anchors: ## Maintainer-only: generate and review public fingerprint anchors
+	@./scripts/release-insert-anchors.sh
 
-release-export-keys: ## Export public signing keys
-	DOCPRIMS_MINISIGN_KEY=$(DOCPRIMS_MINISIGN_KEY) \
-	DOCPRIMS_MINISIGN_PUB=$(DOCPRIMS_MINISIGN_PUB) \
-	DOCPRIMS_PGP_KEY_ID=$(DOCPRIMS_PGP_KEY_ID) \
-	DOCPRIMS_GPG_HOMEDIR=$(DOCPRIMS_GPG_HOMEDIR) \
-	./scripts/export-release-keys.sh $(DIST_RELEASE)
+release-clean: ## Safely empty the repository release staging directory
+	@./scripts/release-clean.sh "$(RELEASE_DIR)"
 
-release-verify-checksums: ## Verify checksums match artifacts
-	@echo "Verifying checksums..."
-	cd $(DIST_RELEASE) && shasum -a 256 -c SHA256SUMS
-	@echo "[ok] Checksums verified"
+release-download: ## Download exact unsigned assets from the trusted draft
+	@./scripts/download-release-assets.sh "$(RELEASE_DIR)"
 
-release-verify-signatures: ## Verify minisign/PGP signatures
-	./scripts/verify-signatures.sh $(DIST_RELEASE)
+release-notes: ## Add the exact per-cut notes to the signable asset set
+	@DOCPRIMS_REQUIRE_TAG=1 ./scripts/release-guard-tag-version.sh >/dev/null
+	@test -f "docs/releases/$${DOCPRIMS_RELEASE_TAG}.md" || \
+		{ echo "[!!] Exact per-cut release notes are missing"; exit 1; }
+	@./scripts/validate-release-assets.sh "$(RELEASE_DIR)" base >/dev/null
+	@cp "docs/releases/$${DOCPRIMS_RELEASE_TAG}.md" \
+		"$(RELEASE_DIR)/release-notes-$${DOCPRIMS_RELEASE_TAG}.md"
+	@./scripts/stage-release-anchors.sh "$(RELEASE_DIR)"
+	@./scripts/validate-release-assets.sh "$(RELEASE_DIR)" signable >/dev/null
+	@echo "[ok] Per-cut release notes added to the signed set"
 
-release-verify-keys: ## Verify exported keys are public-only
-	./scripts/verify-public-keys.sh $(DIST_RELEASE)
+release-checksums: ## Generate exact SHA256 and SHA512 manifests
+	@./scripts/generate-checksums.sh "$(RELEASE_DIR)"
 
-release-verify: release-verify-checksums release-verify-signatures release-verify-keys ## Run all release verification
-	@echo "[ok] All release verifications passed"
+release-sign: ## Sign checksum manifests with local MFA-held keys
+	@./scripts/sign-release-assets.sh "$(RELEASE_DIR)"
 
-release-notes: ## Copy release notes to dist
-	@src="docs/releases/$(DOCPRIMS_RELEASE_TAG).md"; \
-	if [ -f "$$src" ]; then \
-		cp "$$src" "$(DIST_RELEASE)/release-notes-$(DOCPRIMS_RELEASE_TAG).md"; \
-		echo "[ok] Copied release notes"; \
-	else \
-		echo "[--] No release notes found at $$src"; \
-	fi
+release-export-keys: ## Export and prove public verification material
+	@./scripts/export-release-keys.sh "$(RELEASE_DIR)"
 
-release-upload: release-verify release-notes ## Upload signed artifacts to GitHub release
-	./scripts/upload-release-assets.sh $(DOCPRIMS_RELEASE_TAG) $(DIST_RELEASE)
+release-verify-checksums: ## Verify exact dual checksum manifests
+	@./scripts/verify-checksums.sh "$(RELEASE_DIR)"
 
-release: release-clean release-download release-checksums release-sign release-export-keys release-upload ## Full release workflow (after CI build)
-	@echo "[ok] Release $(DOCPRIMS_RELEASE_TAG) complete"
+release-verify-signatures: ## Verify every configured signature
+	@./scripts/verify-signatures.sh "$(RELEASE_DIR)"
+
+release-verify-keys: ## Verify exported public keys against staged anchors
+	@./scripts/verify-public-keys.sh "$(RELEASE_DIR)"
+
+release-verify: release-verify-checksums release-verify-signatures release-verify-keys ## Verify signed release set
+	@./scripts/validate-release-assets.sh "$(RELEASE_DIR)" signed >/dev/null
+	@echo "[ok] Signed release set verified"
+
+release-upload: ## Verify once and update the exact trusted draft release
+	@./scripts/upload-release-assets.sh "$(RELEASE_DIR)"
+
+release: release-guard-tag-version ## Run the serialized local signing ceremony
+	@DOCPRIMS_REQUIRE_TAG=1 ./scripts/release-guard-tag-version.sh >/dev/null
+	@$(MAKE) release-clean
+	@$(MAKE) release-download
+	@$(MAKE) release-notes
+	@$(MAKE) release-checksums
+	@$(MAKE) release-sign
+	@$(MAKE) release-export-keys
+	@$(MAKE) release-upload
+	@echo "[ok] Release assets signed and uploaded; GitHub release remains draft"
 
 # -----------------------------------------------------------------------------
 # Version Management
