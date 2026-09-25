@@ -25,9 +25,12 @@ docprims uses the same high-level release posture as sysprims:
 
 ### Version & Documentation
 
-- [ ] Update `VERSION` file with new semver (e.g. `0.1.1`)
-- [ ] Ensure workspace version matches `VERSION` (if applicable)
-- [ ] Update `CHANGELOG.md` (if present)
+- [ ] Set the version everywhere: `make version-set V=X.Y.Z` (writes `VERSION`,
+      `Cargo.toml`, `Cargo.lock` and the npm manifests), then `make version-check`
+- [ ] Move `CHANGELOG.md` `[Unreleased]` entries under `## [X.Y.Z] - YYYY-MM-DD`
+- [ ] Add `## vX.Y.Z — YYYY-MM-DD` to `RELEASE_NOTES.md` and copy that exact
+      section to `docs/releases/vX.Y.Z.md` (`scripts/check-release-notes.sh vX.Y.Z`)
+- [ ] Package the publishable crates without publishing: `make release-check`
 
 ### Commit & Push
 
@@ -48,6 +51,8 @@ docprims uses the same high-level release posture as sysprims:
   git log --oneline HEAD..origin/main
   ```
   Both commands must show no output.
+
+- [ ] Run the pre-tag gate on the merged `main`: `make release-preflight`
 
 ### Go Bindings Prep (Required)
 
@@ -229,9 +234,46 @@ npm publish --access public
 
 This publishes with local platform binary only. Run the workflow publish afterward for cross-platform support.
 
-## 4. Post-Release Verification
+## 4. crates.io (maintainer action after the tag)
+
+CI has no registry token and never uploads crates. A registry version cannot
+be overwritten: a correction takes a new patch version.
+
+The only ordered list is `config/release/publishable-crates.txt`
+(`docprims-core`, `docprims-text`, `docprims-ooxml`, `docprims`); print and
+validate it with `make release-crates-list`. `docprims-ffi` and
+`docprims-ts-napi` are unpublished (`publish = false`), which
+`make release-tooling-test` proves.
+
+- [ ] In a clean detached checkout of the pushed tag:
+  ```bash
+  git checkout --detach "v$(cat VERSION)"
+  DOCPRIMS_RELEASE_TAG="v$(cat VERSION)" DOCPRIMS_REQUIRE_TAG=1 make release-guard-tag-version
+  DOCPRIMS_RELEASE_TAG="v$(cat VERSION)" make release-crates-dry-run
+  ```
+  The dry run patches earlier workspace crates in by path; it uploads nothing.
+- [ ] Use a crates.io token scoped to the publishable names, kept outside the
+      repository and CI, with an expiry of 30–90 days. The first upload needs
+      `publish-new` and `publish-update`; later versions need only
+      `publish-update`. Do not grant `yank`. Load it only into the environment
+      of each publish command; do not use `cargo login`.
+- [ ] Publish **one crate at a time** in list order, verifying each before the next:
+  ```bash
+  make release-crates-list
+  export DOCPRIMS_RELEASE_TAG="v$(cat VERSION)"
+  cargo publish --locked -p "${crate:?set the next ordered crate}"
+  make release-crates-verify CRATE="$crate"
+  # Repeat for each remaining entry; after the last:
+  make release-crates-verify
+  ```
+  Each verification waits for `cargo info --registry crates-io <crate>@<version>`
+  and checks the exact version on the crates.io API.
+- [ ] Review the crates.io pages and the docs.rs builds.
+
+## 5. Post-Release Verification
 
 - [ ] Verify release is public: `gh release view v$(cat VERSION)`
 - [ ] Download and verify checksums/signatures using the published public keys
 - [ ] Verify npm package: `npm view @3leaps/docprims`
+- [ ] Verify crates: `cargo info --registry crates-io docprims@$(cat VERSION)`
 - [ ] Test Go module: `go get github.com/3leaps/docprims/bindings/go/docprims@v$(cat VERSION)`
