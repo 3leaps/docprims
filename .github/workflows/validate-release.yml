@@ -57,7 +57,7 @@ jobs:
       - name: Build and test TypeScript bindings
         run: |
           cd bindings/typescript/docprims
-          npm install
+          npm ci
           npm run test:ci
   validate-typescript-musl:
     name: Validate TypeScript Bindings (Alpine/musl)
@@ -87,5 +87,5 @@ jobs:
         run: |
           set -euo pipefail
           . "$HOME/.cargo/env"
-          npm install
+          npm ci
           npm run test:ci

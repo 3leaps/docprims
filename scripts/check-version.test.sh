@@ -25,9 +25,8 @@ for mutation in \
   "crates/docprims-ooxml/Cargo.toml|s/^version.workspace = true/version = \"9.9.9\"/" \
   "$npm/native/Cargo.toml|s/^version.workspace = true/version = \"9.9.9\"/" \
   "$npm/package.json|1,/\"version\": \"[^\"]*\"/s/\"version\": \"[^\"]*\"/\"version\": \"9.9.9\"/" \
-  "$npm/package.json|s/\"@3leaps\/docprims-win32-x64-msvc\": \"[^\"]*\"/\"@3leaps\/docprims-win32-x64-msvc\": \"9.9.9\"/" \
   "$npm/package-lock.json|1,/\"version\": \"[^\"]*\"/s/\"version\": \"[^\"]*\"/\"version\": \"9.9.9\"/" \
-  "$npm/package-lock.json|s/\"@3leaps\/docprims-darwin-arm64\": \"[^\"]*\"/\"@3leaps\/docprims-darwin-arm64\": \"9.9.9\"/"; do
+  "$npm/package.json|s/\"devDependencies\": {/\"optionalDependencies\": {\"@3leaps\/docprims-linux-x64-gnu\": \"0.0.0\"}, \"devDependencies\": {/"; do
   file="${mutation%%|*}"
   expr="${mutation#*|}"
   fresh_copy

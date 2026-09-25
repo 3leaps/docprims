@@ -237,13 +237,11 @@ jobs:
         working-directory: bindings/typescript/docprims
         run: |
           set -euo pipefail
-          # Use npm install instead of npm ci: the platform packages listed in
-          # optionalDependencies are published by this workflow, so they are not
-          # in the lock file and do not exist yet. npm install skips them. Do not
-          # pass --omit=optional: the TypeScript compiler binary is an optional
-          # dependency of typescript.
-          npm install
+          npm ci
           npm run build
+      - name: Point the root package at the platform packages
+        working-directory: bindings/typescript/docprims
+        run: node scripts/set-platform-packages.js ../../../npm-packages
       - name: Publish (dry run)
         if: ${{ inputs.dry_run }}
         working-directory: bindings/typescript/docprims

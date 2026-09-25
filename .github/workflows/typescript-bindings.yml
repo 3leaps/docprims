@@ -27,7 +27,7 @@ jobs:
       - name: Install deps and run tests
         run: |
           cd bindings/typescript/docprims
-          npm install
+          npm ci
           npm run test:ci
   test-typescript-alpine:
     name: Test TypeScript Bindings (Alpine/musl)
@@ -45,6 +45,6 @@ jobs:
               apk add --no-cache bash curl build-base python3 ca-certificates
               curl -fsSL https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.94.1
               . "$HOME/.cargo/env"
-              npm install
+              npm ci
               npm run test:ci
             '

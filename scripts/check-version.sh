@@ -78,10 +78,16 @@ fi
 ok "workspace path-dependency versions match"
 
 npm_dir="$PROJECT_ROOT/bindings/typescript/docprims"
+# Platform packages are injected at publish time (scripts/set-platform-packages.js);
+# committed manifests list none, so the lock file installs with npm ci.
+if jq -e -s 'map(.optionalDependencies // .packages[""].optionalDependencies) | any' \
+  "$npm_dir/package.json" "$npm_dir/package-lock.json" >/dev/null; then
+  error "npm manifests must not list optionalDependencies"
+  failed=1
+fi
 npm_versions=$(
-  jq -r '.version, (.optionalDependencies // {} | .[])' "$npm_dir/package.json"
-  jq -r '.version, .packages[""].version, (.packages[""].optionalDependencies // {} | .[])' \
-    "$npm_dir/package-lock.json"
+  jq -r '.version' "$npm_dir/package.json"
+  jq -r '.version, .packages[""].version' "$npm_dir/package-lock.json"
 )
 while IFS= read -r npm_version; do
   if [[ "$npm_version" != "$version" ]]; then
@@ -93,5 +99,5 @@ if [[ "$failed" -ne 0 ]]; then
   error "version consistency check failed"
   exit 1
 fi
-ok "npm package and platform package versions match"
+ok "npm package versions match"
 ok "version consistency check passed"
