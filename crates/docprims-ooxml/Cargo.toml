@@ -7,6 +7,9 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
+publish = true
+documentation = "https://docs.rs/docprims-ooxml"
+readme = "README.md"
 
 [features]
 default = ["docx", "xlsx", "pptx"]

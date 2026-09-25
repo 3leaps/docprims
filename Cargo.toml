@@ -16,6 +16,8 @@ rust-version = "1.88.0"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/3leaps/docprims"
 authors = ["3leaps Architecture Council"]
+# Crates opt in to crates.io with `publish = true`; config/release/publishable-crates.txt lists them.
+publish = false
 
 [workspace.dependencies]
 docprims = { path = "crates/docprims" }
