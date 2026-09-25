@@ -1,0 +1,41 @@
+# goneat dependency policy for docprims.
+# The license list mirrors deny.toml, which cargo-deny enforces in CI.
+version: v1
+licenses:
+  forbidden:
+    - GPL-2.0
+    - GPL-3.0
+    - AGPL-3.0
+    - LGPL-2.1
+    - LGPL-3.0
+  allowed:
+    - MIT
+    - Apache-2.0
+    - BSD-3-Clause
+    - ISC
+    - Zlib
+    - Unicode-3.0
+    - MPL-2.0
+    - BSL-1.0
+    - Unlicense
+# Supply chain cooling: new releases wait before adoption.
+cooling:
+  enabled: true
+  min_age_days: 7
+  min_downloads: 100
+  alert_only: false
+  grace_period_days: 3
+  exceptions:
+    - pattern: "github.com/3leaps/*"
+      reason: "3leaps packages"
+    - pattern: "github.com/fulmenhq/*"
+      reason: "Fulmen ecosystem packages"
+policy_engine:
+  type: embedded
+languages:
+  - language: go
+    paths:
+      - bindings/go/docprims/go.mod
+  - language: rust
+    paths:
+      - Cargo.toml
