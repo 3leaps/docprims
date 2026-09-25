@@ -86,6 +86,13 @@ test("rejects platform directories that differ from napi.targets", () => {
 		["extra platform", (d) => stage(d, "darwin-x64")],
 		["renamed platform", (d) => fs.renameSync(path.join(d, "linux-x64-gnu"), path.join(d, "linux-x64"))],
 		["stray file", (d) => fs.writeFileSync(path.join(d, "README.md"), "")],
+		[
+			"file in place of a platform directory",
+			(d) => {
+				fs.rmSync(path.join(d, "win32-x64-msvc"), { recursive: true });
+				fs.writeFileSync(path.join(d, "win32-x64-msvc"), "");
+			},
+		],
 		["wrong package name", (d) => stage(d, "darwin-arm64", { name: `${manifest.name}-other` })],
 		["wrong version", (d) => stage(d, "darwin-arm64", { version: "0.0.0" })],
 		["missing addon", (d) => fs.rmSync(path.join(d, "linux-arm64-musl", "docprims.linux-arm64-musl.node"))],
