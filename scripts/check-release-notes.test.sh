@@ -35,6 +35,10 @@ write_fixture "$section" "$section"
 expect_fail v1.1.0
 expect_fail v1.3.0
 expect_fail 1.2.0
+# A missing section must fail even against an empty per-cut file.
+: >"$fixture/docs/releases/v1.2.0.md"
+printf '# Release Notes\n\n---\n' >"$fixture/RELEASE_NOTES.md"
+expect_fail v1.2.0
 rm "$fixture/docs/releases/v1.2.0.md"
 expect_fail v1.2.0
 echo '[ok] per-cut notes check accepts only the exact section'

@@ -63,6 +63,10 @@ git -C "$fixture" push -q --force origin refs/tags/v1.2.3
 git -C "$fixture" update-ref refs/tags/v1.2.3 "$original_tag"
 expect_fail run_guard DOCPRIMS_RELEASE_TAG=v1.2.3 \
   DOCPRIMS_REQUIRE_TAG=1 ./guard.sh
+# Restore the remote tag so the next case fails only because main moved.
+git -C "$fixture" push -q --force origin refs/tags/v1.2.3
+run_guard DOCPRIMS_RELEASE_TAG=v1.2.3 \
+  DOCPRIMS_REQUIRE_TAG=1 ./guard.sh >/dev/null
 
 git -C "$fixture" checkout -q main
 printf 'next\n' >"$fixture/next"
