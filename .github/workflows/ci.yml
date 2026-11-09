@@ -23,7 +23,7 @@ jobs:
           git diff --exit-code ffi/docprims-ffi/docprims.h
           diff -u ffi/docprims-ffi/docprims.h bindings/go/docprims/include/docprims.h
   test-go-vendored:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
