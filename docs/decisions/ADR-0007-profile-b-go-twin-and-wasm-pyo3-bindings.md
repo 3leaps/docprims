@@ -40,9 +40,18 @@ yamlprims ADR-0004 and canonprims are the reference implementations.
 3. **Single Rust crate.** `docprims-core`, `docprims-text` and
    `docprims-ooxml` merge into one `docprims` crate with internal modules.
    `docprims-cli` stays a thin CLI over it. Rust forbids unsafe code in both.
+   Each format family is a Cargo feature (`pdf`, `ooxml`, `text`), all on by
+   default. A consumer that disables a feature does not pull that family's
+   dependencies (for example `zip` and `quick-xml` for `ooxml`, `scraper` and
+   `pulldown-cmark` for `text`). A compiled-out format returns the same
+   `Unsupported` refusal as an unbuilt one, so features change availability,
+   never semantics. CI builds and tests each feature alone and all together.
 4. **Pure-Go twin.** A new package `github.com/3leaps/docprims/extract` in the
    root `go.mod`, `CGO_ENABLED=0`, standard library only, enforced by a
-   dependency check script. v0.2 scope: DOCX, XLSX, PPTX, XML and PDF.
+   dependency check script. Format families are importable subpackages
+   (`extract/pdf`, `extract/ooxml`) with `extract` as a dispatcher over them,
+   so a consumer importing one family links only that family. v0.2 scope:
+   DOCX, XLSX, PPTX, XML and PDF.
 5. **HTML and Markdown stay Rust-only in v0.2.** Go has no standard-library
    HTML or Markdown parser. A dependency decision for the Go tree is deferred
    to v0.3.
@@ -94,10 +103,11 @@ Does not remove cgo, which is the requirement for Go consumers.
 
 ADR-0018 requires one repo, one version and one tag for Profile B.
 
-### Keep the four-crate split
+### Keep the four-crate split, or one crate per format family
 
-No consumer needs the formats as separate crates; the split multiplies
-publishing and semver work.
+Limits each consumer's dependency closure, but multiplies crates to version,
+publish and verify. Cargo features give the same closure control with one
+semver line, one publish and one tag.
 
 ## Open Questions
 

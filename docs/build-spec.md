@@ -36,6 +36,10 @@ Rules (ADR-0007):
 - The library takes bytes and performs no filesystem, network or environment
   access. The CLI does file I/O.
 - Rust: `#![forbid(unsafe_code)]`, MSRV 1.88, workspace lockfile committed.
+  Format families are Cargo features (`pdf`, `ooxml`, `text`, all default);
+  a compiled-out format refuses with `Unsupported`.
+- Go: format families are subpackages (`extract/pdf`, `extract/ooxml`) under
+  an `extract` dispatcher.
 - Go: `CGO_ENABLED=0`, standard library only, plus the canonprims Go package
   (DDR-0001). Enforced by `scripts/deps-check.sh`.
 - WASM: zero imports. Bindings live outside the root Cargo workspace.
@@ -77,27 +81,30 @@ The v0.2 pipeline ports yamlprims' release tooling (`scripts/release-*`,
 `release.yml`, `registry-publish.yml`, `crates-verify.yml`, workflow pin and
 permission checks, `keys/` anchors).
 
-| Control         | v0.1                | v0.2                                                                 |
-| --------------- | ------------------- | -------------------------------------------------------------------- |
-| Tags            | Annotated, unsigned | OpenPGP-signed by `3 Leaps Infosec Team` with a pinned subkey        |
-| Checksums       | Minisign            | SHA256SUMS and SHA512SUMS, each signed with Minisign and OpenPGP     |
-| Binaries in git | Vendored libraries  | None; CI builds every artifact from the signed tag                   |
-| SBOM            | None                | CycloneDX                                                            |
-| Registries      | npm only            | crates.io, npm, PyPI by OIDC trusted publishing; Go via module proxy |
-| Verification    | Manual              | Post-publish byte comparison against the signed bundle               |
+| Control         | v0.1                | v0.2                                                                                 |
+| --------------- | ------------------- | ------------------------------------------------------------------------------------ |
+| Tags            | Annotated, unsigned | OpenPGP-signed by `3 Leaps Infosec Team` with a pinned subkey                        |
+| Checksums       | Minisign            | SHA256SUMS and SHA512SUMS, each signed with Minisign and OpenPGP                     |
+| Binaries in git | Vendored libraries  | None; CI builds every artifact from the signed tag                                   |
+| SBOM            | None                | CycloneDX                                                                            |
+| Registries      | npm only            | v0.2.0 by maintainer token; OIDC trusted publishing from v0.2.1; Go via module proxy |
+| Verification    | Manual              | Post-publish byte comparison against the signed bundle                               |
 
 ### Maintainer (local-seat) steps
 
-Agents prepare everything up to these steps and hand them over:
+Agents prepare everything up to `make release-tag` and hand over. Everything
+from tagging onward runs locally. Following the usual pattern, the first
+release (v0.2.0) publishes to registries by maintainer token, and OIDC trusted
+publishing is configured for the second release.
 
 - [ ] Sign the specification tag and each `v0.2.x` tag with the infosec
       hardware-backed signing subkey (`make release-tag`).
 - [ ] Sign checksum manifests with the org Minisign key and OpenPGP, then
       upload the bundle.
-- [ ] First publish of `docprims` and `docprims-cli` to crates.io by token,
-      if trusted publishing still requires an existing crate.
-- [ ] Configure trusted publishers: npm `@3leaps/docprims`, PyPI pending
-      publisher `docprims`, crates.io after first publish.
+- [ ] Publish v0.2.0 to crates.io (`docprims`, `docprims-cli`), npm and PyPI
+      by token.
+- [ ] Configure OIDC trusted publishers on crates.io, npm and PyPI before
+      v0.2.1.
 - [ ] Configure GitHub release environments and protections to match
       yamlprims.
 - [ ] Decide whether v0.1.5 is tagged as the last cgo release.
