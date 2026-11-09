@@ -1,0 +1,31 @@
+# .fulmen/repo.yaml: what this repo claims to be. Written against the draft
+# repository-classes standard; the repo-declaration schema is planned, and this
+# file follows it when it lands.
+#
+# v0.2 is a relaunch in progress (docs/build-spec.md, ADR-0007). The profile is
+# declared B but is bootstrapping: the Rust tree operates; the pure-Go twin is
+# planned. Each tree's supported formats are listed under capabilities and every
+# unlisted format refuses with a typed Unsupported error.
+schema: "contract:taxonomy/v0/repo-declaration.schema.json"
+class: prims
+profile: B                  # locked parallel pure-Go and Rust implementations (target)
+profile_status: bootstrapping  # Rust tree operating; Go tree planned (ADR-0007)
+operating_trees: [rust]
+leaf: false                 # proposed dependency on canonprims for canonical output (DDR-0001)
+category: library
+env_prefix: DOCPRIMS_
+umbrella_prefix: null
+surfaces: [library, cli]
+bindings:
+  rust: planned             # docprims, docprims-cli (crates.io; names unpublished as of 2026-11-09)
+  go: planned               # github.com/3leaps/docprims/extract (pure Go, CGO_ENABLED=0, stdlib only)
+  typescript: planned       # @3leaps/docprims (npm) 0.2.x as zero-import wasm32 module; 0.1.x napi to be deprecated
+  python: planned           # docprims (PyPI), bindings/python (PyO3/maturin, abi3-py310)
+target_registries: [crates_io, go_proxy, npm, pypi]
+capabilities:               # per-tree capability declaration (crucible ADR-0018)
+  rust: [docx, xlsx, pptx, markdown, html, xml]   # pdf planned (WP5)
+  go: []                                          # planned v0.2: docx, xlsx, pptx, xml, pdf
+extensions:
+  - id: typescript-wasm-binding
+    scope: typescript
+    reason: "zero-import wasm32-unknown-unknown module per ADR-0007, matching yamlprims and canonprims; replaces the napi-rs addon"

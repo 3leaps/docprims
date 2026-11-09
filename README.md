@@ -5,6 +5,8 @@ Content extraction from documents in a permissive licensing toolkit.
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](LICENSE-MIT)
 [![Rust](https://img.shields.io/badge/rust-1.88%2B-orange.svg)](https://www.rust-lang.org/)
 
+> **v0.2 relaunch in progress.** docprims is moving to a Rust crate plus a pure-Go twin (no cgo), adding PDF, and adopting signed, verifiable releases. See the [v0.2 build specification](docs/build-spec.md). The instructions below describe v0.1.x.
+
 ## Overview
 
 **docprims** extracts text from documents with permissive licensing throughout. Use it to build content analysis tools, search indexers, or document processors that can be statically linked and embedded in commercial software.

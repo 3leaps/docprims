@@ -17,22 +17,24 @@ This directory contains architectural, design, and security decision records for
 | ID       | Title                                               | Status   | Date       |
 | -------- | --------------------------------------------------- | -------- | ---------- |
 | [ADR-0001](ADR-0001-license-policy.md) | License Policy | Accepted | 2025-01-25 |
-| [ADR-0002](ADR-0002-crate-structure.md) | Crate Structure | Accepted | 2025-01-25 |
+| [ADR-0002](ADR-0002-crate-structure.md) | Crate Structure | Superseded by ADR-0007 | 2025-01-25 |
 | [ADR-0003](ADR-0003-input-validation-policy.md) | Input Validation Policy | Accepted | 2025-01-25 |
 | [ADR-0004](ADR-0004-stdout-purity.md) | Stdout Purity for CLI Composability | Accepted | 2025-01-25 |
 | [ADR-0006](ADR-0006-typescript-npm-publishing.md) | TypeScript npm Publishing Standard | Accepted | 2026-01-31 |
+| [ADR-0007](ADR-0007-profile-b-go-twin-and-wasm-pyo3-bindings.md) | Profile B Go Twin, Single Rust Crate, and WASM/PyO3 Bindings | Accepted | 2026-11-09 |
 
 ### Design Decision Records (DDR)
 
 | ID       | Title                | Status   | Date       |
 | -------- | -------------------- | -------- | ---------- |
-| _None yet_ |                    |          |            |
+| [DDR-0001](DDR-0001-extract-v1-receipts-refusals-and-limits.md) | Extract v1, Receipts, Refusals, and Limits Profiles | Proposed | 2026-11-09 |
 
 ### Security Decision Records (SDR)
 
 | ID       | Title                | Status   | Date       |
 | -------- | -------------------- | -------- | ---------- |
 | [SDR-0002](SDR-0002-ooxml-v0-block-granularity.md) | OOXML v0 Block Granularity | Accepted | 2026-01-27 |
+| [SDR-0003](SDR-0003-pdf-scope-limits-and-refusals.md) | PDF Scope, Resource Limits, and Refusals | Accepted | 2026-11-09 |
 
 ## Creating a New Record
 
