@@ -10,6 +10,11 @@ on:
         type: string
 env:
   CARGO_TERM_COLOR: always
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
   validate:
     name: Validate Inputs
@@ -17,7 +22,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Validate version matches VERSION file
         id: version
         run: |
@@ -34,7 +39,8 @@ jobs:
     name: Build FFI (Linux)
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/fulmenhq/goneat-tools-runner-glibc:v0.3.1
+      # goneat-tools-runner-glibc v0.5.6
+      image: ghcr.io/fulmenhq/goneat-tools-runner-glibc@sha256:afcffa00283c765928dfef40966c282f2ca190653cf4443f634cb8f67c1d51ab
       options: --user root
     needs: validate
     strategy:
@@ -53,7 +59,7 @@ jobs:
             glibc: ""
             artifact_suffix: linux-arm64-musl
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Verify cargo-zigbuild is available
         shell: bash
         run: |
@@ -105,7 +111,7 @@ jobs:
             cp "target/${TARGET_DIR}/release/libdocprims_ffi.so" "dist/ffi/${{ matrix.artifact_suffix }}/"
           fi
       - name: Upload FFI artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: ffi-${{ matrix.artifact_suffix }}
           path: dist/ffi/${{ matrix.artifact_suffix }}
@@ -116,14 +122,15 @@ jobs:
     env:
       MACOSX_DEPLOYMENT_TARGET: "11.0"
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de  # v1
         with:
+          toolchain: 1.94.1
           targets: aarch64-apple-darwin
       - name: Build FFI (arm64)
         run: |
           set -euo pipefail
-          cargo build --release --target aarch64-apple-darwin -p docprims-ffi
+          cargo build --release --target aarch64-apple-darwin -p docprims-ffi --locked
       - name: Package FFI
         run: |
           set -euo pipefail
@@ -135,7 +142,7 @@ jobs:
           # This allows consumers to set rpath or place dylib alongside executable.
           install_name_tool -id "@rpath/libdocprims_ffi.dylib" dist/ffi/darwin-arm64/libdocprims_ffi.dylib
       - name: Upload FFI artifact (darwin-arm64)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: ffi-darwin-arm64
           path: dist/ffi/darwin-arm64
@@ -144,12 +151,13 @@ jobs:
     runs-on: windows-latest
     needs: validate
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de  # v1
         with:
+          toolchain: 1.94.1
           targets: x86_64-pc-windows-gnu
       - name: Install MinGW
-        uses: msys2/setup-msys2@v2
+        uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884  # v2.32.0
         with:
           msystem: MINGW64
           update: true
@@ -159,7 +167,7 @@ jobs:
         shell: msys2 {0}
         run: |
           set -euo pipefail
-          cargo build --release --target x86_64-pc-windows-gnu -p docprims-ffi
+          cargo build --release --target x86_64-pc-windows-gnu -p docprims-ffi --locked
       - name: Package FFI
         shell: bash
         run: |
@@ -169,7 +177,7 @@ jobs:
           cp target/x86_64-pc-windows-gnu/release/docprims_ffi.dll dist/ffi/windows-amd64/
           cp target/x86_64-pc-windows-gnu/release/libdocprims_ffi.dll.a dist/ffi/windows-amd64/
       - name: Upload FFI artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: ffi-windows-amd64
           path: dist/ffi/windows-amd64
@@ -177,18 +185,19 @@ jobs:
     name: Generate C Header
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/fulmenhq/goneat-tools-runner-glibc:v0.3.1
+      # goneat-tools-runner-glibc v0.5.6
+      image: ghcr.io/fulmenhq/goneat-tools-runner-glibc@sha256:afcffa00283c765928dfef40966c282f2ca190653cf4443f634cb8f67c1d51ab
       options: --user root
     needs: validate
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Generate C header
         shell: bash
         run: |
           set -euo pipefail
           cbindgen --config cbindgen.toml --crate docprims-ffi --output docprims.h
       - name: Upload header
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: c-header
           path: docprims.h
@@ -200,16 +209,16 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0
       - name: Download all FFI artifacts
-        uses: actions/download-artifact@v4.1.3
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
           pattern: ffi-*
           path: ffi-libs
       - name: Download C header
-        uses: actions/download-artifact@v4.1.3
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
           name: c-header
           path: ffi-libs
@@ -258,9 +267,9 @@ jobs:
           echo "Go bindings updated for $VERSION"
           ls -la bindings/go/docprims/lib/*/ || true
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1  # v8.1.1
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ github.token }}
           base: main
           branch: go-bindings/v${{ needs.validate.outputs.version }}
           title: "feat(bindings): update Go prebuilt libs for v${{ needs.validate.outputs.version }}"

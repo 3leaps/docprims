@@ -1,8 +1,12 @@
 # ADR-0002: Crate Structure
 
-> **Status**: Accepted
+> **Status**: Accepted; amended by [PDR-0001](PDR-0001-crates-io-publication.md)
 > **Date**: 2025-01-25
 > **Authors**: 3leaps Architecture Council
+
+> **Amendment (v0.2.0):** `docprims-cli` is replaced by the `docprims` crate, the
+> library entry point, whose `cli` feature builds the `docprims` binary. See
+> PDR-0001.
 
 ## Context
 

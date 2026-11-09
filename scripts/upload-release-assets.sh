@@ -1,61 +1,33 @@
 #!/usr/bin/env bash
-# Upload signed release assets to GitHub
-# Usage: upload-release-assets.sh <tag> [dir]
-#
-# Uploads checksum files, signatures, public keys, and release notes.
-# Requires: gh CLI authenticated with write permissions
+# Verify and upload the exact signed provenance set to the trusted draft.
+
 set -euo pipefail
 
-TAG=${1:?"usage: upload-release-assets.sh <tag> [dir]"}
-DIR=${2:-dist/release}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=release-common.sh
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/release-common.sh"
 
-if [ ! -d "$DIR" ]; then
-  echo "Error: Directory $DIR does not exist"
-  exit 1
-fi
+directory="${1:-dist/release}"
+require_release_guard 1 >/dev/null
+tag="$(release_tag)"
+"$SCRIPT_DIR/validate-release-assets.sh" "$directory" signed >/dev/null
+"$SCRIPT_DIR/verify-checksums.sh" "$directory" >/dev/null
+"$SCRIPT_DIR/verify-public-keys.sh" "$directory" >/dev/null
+"$SCRIPT_DIR/verify-signatures.sh" "$directory" >/dev/null
+assert_github_release_state release_base_assets
 
-cd "$DIR"
-
-REQUIRED_FILES=(
-  "SHA256SUMS"
-  "SHA256SUMS.minisig"
-  "SHA512SUMS"
-  "SHA512SUMS.minisig"
-  "docprims-minisign.pub"
-)
-
-for file in "${REQUIRED_FILES[@]}"; do
-  if [ ! -f "$file" ]; then
-    echo "Error: Required file missing: $file"
-    exit 1
+# The draft already holds the base assets; upload only what signing added.
+upload_files=()
+while IFS= read -r asset; do
+  if ! release_base_assets | grep -Fxq -- "$asset"; then
+    upload_files+=("$directory/$asset")
   fi
-done
+done < <(release_signed_assets)
 
-UPLOAD_FILES=(
-  "SHA256SUMS"
-  "SHA256SUMS.minisig"
-  "SHA512SUMS"
-  "SHA512SUMS.minisig"
-  "docprims-minisign.pub"
-)
-
-for optional in "SHA256SUMS.asc" "SHA512SUMS.asc" "docprims-release-signing-key.asc"; do
-  if [ -f "$optional" ]; then
-    UPLOAD_FILES+=("$optional")
-  fi
-done
-
-RELEASE_NOTES="release-notes-${TAG}.md"
-if [ -f "$RELEASE_NOTES" ]; then
-  UPLOAD_FILES+=("$RELEASE_NOTES")
-fi
-
-gh release upload "$TAG" "${UPLOAD_FILES[@]}" --clobber
-
-if [ -f "$RELEASE_NOTES" ]; then
-  gh release edit "$TAG" --notes-file "$RELEASE_NOTES"
-fi
-
-gh release edit "$TAG" --draft=false
-
-echo "[ok] Release $TAG published"
+gh release upload "$tag" "${upload_files[@]}" \
+  --repo "$DOCPRIMS_REPOSITORY" --clobber
+gh release edit "$tag" --repo "$DOCPRIMS_REPOSITORY" \
+  --notes-file "$directory/release-notes-${tag}.md"
+assert_github_release_state release_signed_assets
+echo "[ok] signed assets uploaded; GitHub release remains draft"

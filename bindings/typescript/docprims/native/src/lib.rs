@@ -114,16 +114,7 @@ pub fn docprims_extract_file_json(path: String, options_json: String) -> Docprim
         Err(code) => return err_json(code, "invalid options_json"),
     };
 
-    let ext = ext_lowercase(&path);
-    let extracted = match ext.as_str() {
-        "docx" => docprims_ooxml::extract_docx_v0(&path, limits),
-        "xlsx" => docprims_ooxml::extract_xlsx_v0(&path, limits),
-        "pptx" => docprims_ooxml::extract_pptx_v0(&path, limits),
-        "md" | "markdown" => docprims_text::extract_markdown_v0(&path, limits),
-        "html" | "htm" => docprims_text::extract_html_v0(&path, limits),
-        "xml" => docprims_text::extract_xml_v0(&path, limits),
-        _ => Err(DocprimsError::UnknownFormat(ext)),
-    };
+    let extracted = docprims::extract_file(&path, limits);
 
     match extracted {
         Ok(extract) => match serde_json::to_string(&extract) {
@@ -170,33 +161,7 @@ pub fn docprims_extract_bytes_json(
         );
     }
 
-    let bytes = data.as_ref();
-    let extracted = match ext.as_str() {
-        "docx" => {
-            docprims_ooxml::extract_docx_v0_reader(std::io::Cursor::new(bytes), &source_uri, limits)
-        }
-        "xlsx" => {
-            docprims_ooxml::extract_xlsx_v0_reader(std::io::Cursor::new(bytes), &source_uri, limits)
-        }
-        "pptx" => {
-            docprims_ooxml::extract_pptx_v0_reader(std::io::Cursor::new(bytes), &source_uri, limits)
-        }
-        "md" | "markdown" => match std::str::from_utf8(bytes) {
-            Ok(s) => docprims_text::markdown::extract_v0_str(s, &source_uri, limits),
-            Err(_) => Err(DocprimsError::Malformed(
-                "non-utf8 markdown input".to_string(),
-            )),
-        },
-        "html" | "htm" => match std::str::from_utf8(bytes) {
-            Ok(s) => docprims_text::html::extract_v0_str(s, &source_uri, limits),
-            Err(_) => Err(DocprimsError::Malformed("non-utf8 html input".to_string())),
-        },
-        "xml" => match std::str::from_utf8(bytes) {
-            Ok(s) => docprims_text::xml::extract_v0_str(s, &source_uri, limits),
-            Err(_) => Err(DocprimsError::Malformed("non-utf8 xml input".to_string())),
-        },
-        _ => Err(DocprimsError::UnknownFormat(ext)),
-    };
+    let extracted = docprims::extract_bytes(&source_uri, data.as_ref(), limits);
 
     match extracted {
         Ok(extract) => match serde_json::to_string(&extract) {

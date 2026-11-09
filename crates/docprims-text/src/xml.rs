@@ -22,29 +22,26 @@ pub fn extract(content: &str) -> Result<ExtractedText> {
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Text(e)) => {
-                let decoded = e
-                    .decode()
-                    .map_err(|e| DocprimsError::Parse(format!("XML decode error: {}", e)))?;
+                let decoded = e.into_inner();
                 current_part.push_str(&decoded);
             }
             Ok(Event::GeneralRef(e)) => {
                 // Resolve entity reference (e.g., "lt" -> "<", "amp" -> "&")
-                let entity_name = std::str::from_utf8(&e)
-                    .map_err(|e| DocprimsError::Parse(format!("Invalid entity encoding: {}", e)))?;
+                let entity_name: &str = &e;
 
                 if let Some(resolved) = resolve_xml_entity(entity_name) {
                     current_part.push_str(resolved);
                 } else if entity_name.starts_with('#') {
                     // Numeric character reference (&#NNN; or &#xHHH;)
-                    if let Some(ch) = parse_numeric_entity(entity_name) {
+                    if let Some(ch) = docprims_core::xml::resolve_char_ref(entity_name) {
                         current_part.push(ch);
                     }
                 }
                 // Unknown entities are silently dropped
             }
             Ok(Event::CData(e)) => {
-                let cdata_content = String::from_utf8_lossy(&e);
-                current_part.push_str(&cdata_content);
+                let cdata_content: &str = &e;
+                current_part.push_str(cdata_content);
             }
             Ok(Event::Start(_) | Event::End(_)) => {
                 // Element boundaries - flush current text part
@@ -94,29 +91,27 @@ pub fn extract_v0_str(
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Text(e)) => {
-                let decoded = e
-                    .decode()
-                    .map_err(|e| DocprimsError::Parse(format!("XML decode error: {}", e)))?;
+                let decoded = e.into_inner();
                 current_part.push_str(&decoded);
             }
             Ok(Event::GeneralRef(e)) => {
-                let entity_name = std::str::from_utf8(&e)
-                    .map_err(|e| DocprimsError::Parse(format!("Invalid entity encoding: {}", e)))?;
+                let entity_name: &str = &e;
 
                 if let Some(resolved) = resolve_xml_entity(entity_name) {
                     current_part.push_str(resolved);
                 } else if entity_name.starts_with('#') {
-                    if let Some(ch) = parse_numeric_entity(entity_name) {
+                    if let Some(ch) = docprims_core::xml::resolve_char_ref(entity_name) {
                         current_part.push(ch);
                     }
                 }
             }
             Ok(Event::CData(e)) => {
-                let cdata_content = String::from_utf8_lossy(&e);
-                current_part.push_str(&cdata_content);
+                let cdata_content: &str = &e;
+                current_part.push_str(cdata_content);
             }
             Ok(Event::Start(_) | Event::End(_)) => {
-                let trimmed = current_part.trim();
+                let filtered = docprims_core::xml::retain_output_chars(current_part.clone());
+                let trimmed = filtered.trim();
                 if !trimmed.is_empty() {
                     if raw_parts.len() < limits.max_blocks {
                         raw_parts.push(trimmed.to_string());
@@ -128,7 +123,8 @@ pub fn extract_v0_str(
                 current_part.clear();
             }
             Ok(Event::Eof) => {
-                let trimmed = current_part.trim();
+                let filtered = docprims_core::xml::retain_output_chars(current_part.clone());
+                let trimmed = filtered.trim();
                 if !trimmed.is_empty() {
                     if raw_parts.len() < limits.max_blocks {
                         raw_parts.push(trimmed.to_string());
@@ -178,6 +174,13 @@ pub fn extract_v0_str(
         } else {
             text
         };
+        if text.is_empty() {
+            // Nothing fits: drop this block's separator rather than emit an empty block.
+            if start > 0 {
+                doc_text.pop();
+            }
+            break;
+        }
         doc_text.push_str(&text);
         let end = doc_text.len();
 
@@ -229,16 +232,6 @@ pub fn extract_v0_str(
 }
 
 /// Parse a numeric character reference like "#65" or "#x41" to a char.
-fn parse_numeric_entity(entity: &str) -> Option<char> {
-    let s = entity.strip_prefix('#')?;
-    let code = if let Some(hex) = s.strip_prefix('x').or_else(|| s.strip_prefix('X')) {
-        u32::from_str_radix(hex, 16).ok()?
-    } else {
-        s.parse::<u32>().ok()?
-    };
-    char::from_u32(code)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,0 +1,4 @@
+docprims-core
+docprims-text
+docprims-ooxml
+docprims

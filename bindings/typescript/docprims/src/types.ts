@@ -1,3 +1,8 @@
+/**
+ * Resource limits. An omitted field uses the default. A field that is set is
+ * literal: `0` means zero, not "unlimited" (0 output bytes or blocks yields
+ * empty, `partial` output).
+ */
 export type ExtractLimits = {
 	max_input_bytes?: number;
 	max_output_bytes?: number;

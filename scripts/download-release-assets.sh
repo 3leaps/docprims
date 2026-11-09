@@ -1,25 +1,36 @@
 #!/usr/bin/env bash
-# Download release assets from GitHub
-# Usage: download-release-assets.sh <tag> [dest_dir]
-#
-# Requires: gh CLI authenticated
+# Download the exact unsigned CI asset set from the trusted draft release.
+
 set -euo pipefail
 
-TAG=${1:?"usage: download-release-assets.sh <tag> [dest_dir]"}
-DEST=${2:-dist/release}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=release-common.sh
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/release-common.sh"
 
-echo "Downloading release assets for $TAG to $DEST..."
+destination="${1:-dist/release}"
+require_release_guard 1 >/dev/null
+tag="$(release_tag)"
+assert_github_release_state release_base_assets
 
-mkdir -p "$DEST"
+root="$(release_repo_root)"
+expected="$root/dist/release"
+if [[ "$destination" != "$expected" && "$destination" != "dist/release" ]]; then
+  echo "error: release download destination must be repo-owned dist/release" >&2
+  exit 1
+fi
+destination="$expected"
+mkdir -p "$destination"
+if find "$destination" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
+  echo "error: release download requires an empty staging directory" >&2
+  exit 1
+fi
 
-# Download all release artifacts except signatures (those are added after signing)
-gh release download "$TAG" --dir "$DEST" --clobber \
-  --pattern 'docprims-*.tar.gz' \
-  --pattern 'docprims-*.zip' \
-  --pattern 'docprims-ffi-*.tar.gz' \
-  --pattern 'docprims.h' \
-  --pattern 'sbom-*.json' \
-  --pattern 'LICENSE-*'
-
-echo "Downloaded to $DEST:"
-ls -la "$DEST"
+args=()
+while IFS= read -r asset; do
+  args+=(--pattern "$asset")
+done < <(release_base_assets)
+gh release download "$tag" --repo "$DOCPRIMS_REPOSITORY" \
+  --dir "$destination" "${args[@]}"
+"$SCRIPT_DIR/validate-release-assets.sh" "$destination" base >/dev/null
+echo "[ok] exact unsigned draft assets downloaded"

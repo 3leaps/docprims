@@ -1,6 +1,5 @@
 # Rust
 /target/
-Cargo.lock
 
 # IDE
 .idea/
@@ -45,8 +44,7 @@ bindings/typescript/**/node_modules/
 bindings/typescript/**/dist/
 bindings/typescript/**/dist-test/
 bindings/typescript/**/.npmrc
-bindings/typescript/**/package-lock.json
-package-lock.json
+/package-lock.json
 
 # Test artifacts
 *.profraw

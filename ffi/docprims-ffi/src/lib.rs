@@ -184,22 +184,7 @@ pub unsafe extern "C" fn docprims_extract_file_json(
         }
     };
 
-    let path = Path::new(path_str);
-    let ext = path
-        .extension()
-        .and_then(|e| e.to_str())
-        .map(|e| e.to_lowercase())
-        .unwrap_or_default();
-
-    let extracted = match ext.as_str() {
-        "docx" => docprims_ooxml::extract_docx_v0(path, limits),
-        "xlsx" => docprims_ooxml::extract_xlsx_v0(path, limits),
-        "pptx" => docprims_ooxml::extract_pptx_v0(path, limits),
-        "md" | "markdown" => docprims_text::extract_markdown_v0(path, limits),
-        "html" | "htm" => docprims_text::extract_html_v0(path, limits),
-        "xml" => docprims_text::extract_xml_v0(path, limits),
-        _ => Err(DocprimsError::UnknownFormat(ext)),
-    };
+    let extracted = docprims::extract_file(Path::new(path_str), limits);
 
     match extracted {
         Ok(extract) => {
@@ -317,51 +302,7 @@ pub unsafe extern "C" fn docprims_extract_bytes_json(
     }
 
     let bytes = std::slice::from_raw_parts(data, len);
-    let extracted = match ext.as_str() {
-        "docx" => docprims_ooxml::extract_docx_v0_reader(
-            std::io::Cursor::new(bytes),
-            source_uri_str,
-            limits,
-        ),
-        "xlsx" => docprims_ooxml::extract_xlsx_v0_reader(
-            std::io::Cursor::new(bytes),
-            source_uri_str,
-            limits,
-        ),
-        "pptx" => docprims_ooxml::extract_pptx_v0_reader(
-            std::io::Cursor::new(bytes),
-            source_uri_str,
-            limits,
-        ),
-        "md" | "markdown" => match std::str::from_utf8(bytes) {
-            Ok(s) => docprims_text::markdown::extract_v0_str(s, source_uri_str, limits),
-            Err(_) => {
-                let e = DocprimsError::Malformed("non-utf8 markdown input".to_string());
-                let code = map_err(&e);
-                error::set_last_error(code, e.to_string());
-                return code;
-            }
-        },
-        "html" | "htm" => match std::str::from_utf8(bytes) {
-            Ok(s) => docprims_text::html::extract_v0_str(s, source_uri_str, limits),
-            Err(_) => {
-                let e = DocprimsError::Malformed("non-utf8 html input".to_string());
-                let code = map_err(&e);
-                error::set_last_error(code, e.to_string());
-                return code;
-            }
-        },
-        "xml" => match std::str::from_utf8(bytes) {
-            Ok(s) => docprims_text::xml::extract_v0_str(s, source_uri_str, limits),
-            Err(_) => {
-                let e = DocprimsError::Malformed("non-utf8 xml input".to_string());
-                let code = map_err(&e);
-                error::set_last_error(code, e.to_string());
-                return code;
-            }
-        },
-        _ => Err(DocprimsError::UnknownFormat(ext)),
-    };
+    let extracted = docprims::extract_bytes(source_uri_str, bytes, limits);
 
     match extracted {
         Ok(extract) => {

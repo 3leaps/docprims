@@ -6,47 +6,88 @@
 
 ---
 
-## v0.1.5 - 2026-07-07
+## v0.2.0 — 2026-09-25
 
-**Status:** Patch Release (runtime floors + repository guidance)
+**Status:** Minor Release (library entry point, extraction fixes, dependency refresh)
 
-Refreshes package runtime floors and repository guidance before the next coordinated dependency modernization pass.
+### Summary
+
+v0.2.0 adds the `docprims` crate as the library's entry point, fixes several
+extraction edge cases, and updates dependencies and toolchains across the
+Rust crates and the C, Go and TypeScript bindings. It contains breaking
+changes for Rust users of the subcrates; bindings keep their results and
+error codes.
 
 ### Highlights
 
-- **Rust MSRV**: Raised the workspace MSRV to Rust 1.88.0.
-- **TypeScript Node floor**: `@3leaps/docprims` now requires Node.js 22 or newer.
-- **Trusted publishing guard**: npm publishing now hard-checks Node >=22.14.0 and npm >=11.5.1.
-- **TypeScript workflow alignment**: Binding CI, release validation, and N-API prebuild workflows validate on Node 22.
-- **Repository guidance cleanup**: Agent guidance, local-only planning conventions, and YAML linting configuration were refreshed.
+- **`docprims` crate**: One dependency for all formats, with a feature per format.
+- **Extracted text character set**: Every format emits only XML 1.0 characters, excluding DEL and C1 controls.
+- **Numeric character references** resolve in DOCX, XLSX and PPTX.
+- **OOXML decompression limits** are enforced on bytes actually read, per part and per archive.
+- **Output limits** never produce an empty block or a trailing separator.
+- **CLI** is installed with `cargo install docprims --features cli`.
+
+### Using the `docprims` crate
+
+```toml
+[dependencies]
+docprims = "0.2"
+```
+
+```rust
+use docprims::{extract_file, ExtractLimits};
+
+let result = extract_file("report.docx", ExtractLimits::default())?;
+println!("{}", result.document.text);
+```
+
+The parser is chosen from the file extension, or explicitly with
+`extract_file_as` / `extract_bytes_as` and a `Format`. Content is never
+inspected to choose a parser.
+
+Formats are features: `markdown`, `html`, `xml`, `docx`, `xlsx`, `pptx`,
+grouped as `text` and `ooxml`, all on by default. A Markdown-only build:
+
+```toml
+docprims = { version = "0.2", default-features = false, features = ["markdown"] }
+```
+
+`docprims-core`, `docprims-text` and `docprims-ooxml` are published as
+components of `docprims` and carry no stability promise beyond what
+`docprims` re-exports.
+
+### Breaking Changes
+
+| Change | Migration |
+|--------|-----------|
+| `docprims-cli` crate removed | `cargo install docprims --features cli` (same binary name, commands and output) |
+| `--timeout-ms` / `ExtractOptions::timeout_ms` removed (never applied) | Remove the flag or field |
+| `ExtractOptions` removed from `docprims-core` | Use `ExtractLimits` |
+| `docprims_ooxml::common` no longer public | Use `docprims::extract_*` |
+| `DocprimsError`, `DocprimsQualityStatus`, `DocprimsContainerKind` are `#[non_exhaustive]` | Add a wildcard arm to matches |
+
+### Extraction Changes
+
+Extracted text may differ from v0.1.x for documents that contain:
+
+- control characters, DEL or C1 controls (now dropped);
+- numeric character references in DOCX, XLSX or PPTX (now resolved);
+- output truncated by `max_output_bytes` (no empty final block).
+
+Block byte ranges are computed after characters are dropped, so they always
+index the emitted text.
 
 ### Runtime Floors
 
-v0.1.5 aligns the project with currently supported runtime floors:
-
 | Component | Floor |
 |-----------|-------|
-| Rust | 1.88.0 |
+| Rust (MSRV) | 1.88.0 |
 | TypeScript package | Node.js 22+ |
 | npm trusted publishing | Node.js >=22.14.0 and npm >=11.5.1 |
 
-The TypeScript package remains on TypeScript 5.x and napi-rs 2.x for this release. TypeScript 6.x and napi-rs 3.x are reserved for a later coordinated modernization pass.
+### Changelog
 
-### Release Workflow Hardening
-
-The npm publish workflow now uses a dedicated runtime guard that fails fast if the publish runner is below the trusted-publishing floor. The same guard is available locally through:
-
-```bash
-make npm-publish-prereqs-check
-```
-
-`make lint` also runs this guard so workflow drift is caught during normal quality checks.
-
-### Documentation Updates
-
-- README CLI install guidance now uses `cargo install --path crates/docprims-cli` from a repo checkout.
-- Repository guidance now treats planning artifacts as local-only and non-canonical.
-- YAML linting configuration is explicit at repo root.
+See `CHANGELOG.md` for the full list of changes.
 
 ---
 

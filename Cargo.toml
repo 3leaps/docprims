@@ -4,42 +4,45 @@ members = [
     "crates/docprims-core",
     "crates/docprims-text",
     "crates/docprims-ooxml",
-    "crates/docprims-cli",
+    "crates/docprims",
     "ffi/docprims-ffi",
     "bindings/typescript/docprims/native",
 ]
 
 [workspace.package]
-version = "0.1.5"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.88.0"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/3leaps/docprims"
 authors = ["3leaps Architecture Council"]
+# Crates opt in to crates.io with `publish = true`; config/release/publishable-crates.txt lists them.
+publish = false
 
 [workspace.dependencies]
-docprims-core = { path = "crates/docprims-core" }
-docprims-text = { path = "crates/docprims-text" }
-docprims-ooxml = { path = "crates/docprims-ooxml" }
+docprims = { version = "0.2.0", path = "crates/docprims" }
+docprims-core = { version = "0.2.0", path = "crates/docprims-core" }
+docprims-text = { version = "0.2.0", path = "crates/docprims-text", default-features = false }
+docprims-ooxml = { version = "0.2.0", path = "crates/docprims-ooxml", default-features = false }
 
 # Fulmen Ecosystem
-rsfulmen = { version = "=0.1.2", default-features = false, features = ["foundry-core"] }
+rsfulmen = { version = "=0.2.0", default-features = false, features = ["foundry-core"] }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
 # Time
-time = { version = "0.3", features = ["formatting", "serde"] }
+time = { version = "0.3.47", features = ["formatting", "serde"] }
 
 # XML parsing (GPL-free)
-quick-xml = "0.39"
+quick-xml = "0.42"
 
 # ZIP archive handling (GPL-free)
-zip = { version = "2", default-features = false, features = ["deflate"] }
+zip = { version = "8", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 # HTML parsing (GPL-free)
-scraper = "0.25"
+scraper = "0.27"
 
 # Markdown parsing (GPL-free)
 pulldown-cmark = "0.13"

@@ -3,9 +3,20 @@
 #
 # Run: cargo deny check
 
+# Evaluate the graph for every platform docprims ships artifacts for, so
+# target-specific dependencies are checked too.
+[graph]
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "x86_64-unknown-linux-musl",
+    "aarch64-unknown-linux-gnu",
+    "aarch64-unknown-linux-musl",
+    "aarch64-apple-darwin",
+    "x86_64-pc-windows-msvc",
+    "x86_64-pc-windows-gnu",
+]
+
 [advisories]
-db-path = "~/.cargo/advisory-db"
-db-urls = ["https://github.com/rustsec/advisory-db"]
 ignore = []
 
 [licenses]
@@ -32,15 +43,23 @@ multiple-versions = "warn"
 wildcards = "allow"
 highlight = "all"
 
-# Deny GPL and LGPL - this is the core mission of docprims
 deny = [
+    # Deny GPL and LGPL - this is the core mission of docprims
     { name = "poppler-rs" },      # GPL
     { name = "mupdf" },           # AGPL
     { name = "mupdf-sys" },       # AGPL
     { name = "lopdf", version = "<0.30" },  # Older versions had issues
+
+    # TLS: rustls only; no OpenSSL or platform TLS in any graph
+    { name = "openssl" },
+    { name = "openssl-sys" },
+    { name = "native-tls" },
+
+    # Minimum parser versions for untrusted input
+    { name = "quick-xml", version = "<0.41" },
 ]
 
 [sources]
-unknown-registry = "warn"
-unknown-git = "warn"
+unknown-registry = "deny"
+unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]

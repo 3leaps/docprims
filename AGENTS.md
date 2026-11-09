@@ -220,7 +220,7 @@ All parser code must:
 | `crates/docprims-core/`       | Shared types, errors, traits      |
 | `crates/docprims-text/`       | Markdown, HTML, XML extraction    |
 | `crates/docprims-ooxml/`      | DOCX, XLSX, PPTX extraction       |
-| `crates/docprims-cli/`        | CLI binary                        |
+| `crates/docprims/`            | Library entry point; CLI (`cli` feature) |
 | `ffi/docprims-ffi/`           | C-ABI exports via cbindgen        |
 | `bindings/`                   | Go, TypeScript, Python wrappers   |
 | `docs/decisions/`             | ADRs, SDRs, DDRs                  |

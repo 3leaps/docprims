@@ -91,10 +91,6 @@ struct ExtractArgs {
     /// Maximum input file size in bytes.
     #[arg(long, value_name = "BYTES", default_value = "104857600")]
     max_input_bytes: usize,
-
-    /// Extraction timeout in milliseconds.
-    #[arg(long, value_name = "MS", default_value = "30000")]
-    timeout_ms: u64,
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
@@ -295,40 +291,16 @@ fn extract_file_v0(path: &PathBuf, args: &ExtractArgs) -> Result<DocprimsExtract
         .map(|e| e.to_lowercase())
         .unwrap_or_default();
 
-    match ext.as_str() {
-        "docx" => docprims_ooxml::extract_docx_v0(path, limits).map_err(|e| CliError::Extraction {
-            path: path.clone(),
-            source: e.to_string(),
-        }),
-        "xlsx" => docprims_ooxml::extract_xlsx_v0(path, limits).map_err(|e| CliError::Extraction {
-            path: path.clone(),
-            source: e.to_string(),
-        }),
-        "pptx" => docprims_ooxml::extract_pptx_v0(path, limits).map_err(|e| CliError::Extraction {
-            path: path.clone(),
-            source: e.to_string(),
-        }),
-        "md" | "markdown" => {
-            docprims_text::extract_markdown_v0(path, limits).map_err(|e| CliError::Extraction {
-                path: path.clone(),
-                source: e.to_string(),
-            })
-        }
-        "html" | "htm" => {
-            docprims_text::extract_html_v0(path, limits).map_err(|e| CliError::Extraction {
-                path: path.clone(),
-                source: e.to_string(),
-            })
-        }
-        "xml" => docprims_text::extract_xml_v0(path, limits).map_err(|e| CliError::Extraction {
-            path: path.clone(),
-            source: e.to_string(),
-        }),
-        _ => Err(CliError::UnsupportedFormat {
+    let Some(format) = docprims::Format::from_extension(&ext) else {
+        return Err(CliError::UnsupportedFormat {
             path: path.clone(),
             extension: ext,
-        }),
-    }
+        });
+    };
+    docprims::extract_file_as(format, path, limits).map_err(|e| CliError::Extraction {
+        path: path.clone(),
+        source: e.to_string(),
+    })
 }
 
 /// Extract text from a single file.

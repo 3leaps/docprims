@@ -1,60 +1,49 @@
 #!/usr/bin/env bash
-# Verify signatures on checksum manifests
-# Usage: verify-signatures.sh [dir]
+# Verify minisign and, when configured, PGP signatures for both manifests.
+
 set -euo pipefail
 
-DIR=${1:-dist/release}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=release-common.sh
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/release-common.sh"
 
-if [ ! -d "$DIR" ]; then
-  echo "Error: Directory $DIR does not exist"
-  exit 1
-fi
+directory="${1:-dist/release}"
+release_tag >/dev/null
+"$SCRIPT_DIR/verify-public-keys.sh" "$directory" >/dev/null
 
-cd "$DIR"
+for manifest in SHA256SUMS SHA512SUMS; do
+  [[ -f "$directory/${manifest}.minisig" ]] || {
+    echo "error: required minisign signature is missing" >&2
+    exit 1
+  }
+  minisign -Vm "$directory/$manifest" \
+    -p "$directory/docprims-minisign.pub" \
+    -x "$directory/${manifest}.minisig" >/dev/null
+done
 
-ERRORS=0
-
-if [ -f "docprims-minisign.pub" ]; then
-  for manifest in SHA256SUMS SHA512SUMS; do
-    if [ -f "$manifest" ] && [ -f "${manifest}.minisig" ]; then
-      if minisign -Vm "$manifest" -p docprims-minisign.pub; then
-        echo "[ok] $manifest minisign signature valid"
-      else
-        echo "[!!] $manifest minisign signature INVALID"
-        ERRORS=$((ERRORS + 1))
-      fi
-    elif [ -f "$manifest" ]; then
-      echo "[!!] Missing signature: ${manifest}.minisig"
-      ERRORS=$((ERRORS + 1))
-    fi
+pgp_public="$directory/docprims-release-signing-key.asc"
+pgp_present=0
+[[ -e "$pgp_public" ]] && pgp_present=1
+for manifest in SHA256SUMS SHA512SUMS; do
+  [[ -e "$directory/${manifest}.asc" ]] && pgp_present=1
+done
+if [[ "$pgp_present" == "1" ]]; then
+  for file in "$pgp_public" \
+    "$directory/SHA256SUMS.asc" "$directory/SHA512SUMS.asc"; do
+    [[ -f "$file" ]] || {
+      echo "error: partial PGP release material is forbidden" >&2
+      exit 1
+    }
   done
-else
-  echo "[!!] docprims-minisign.pub not found - cannot verify minisign signatures"
-  ERRORS=$((ERRORS + 1))
-fi
-
-if [ -f "docprims-release-signing-key.asc" ]; then
-  GNUPGHOME=$(mktemp -d)
-  export GNUPGHOME
-  trap 'rm -rf "$GNUPGHOME"' EXIT
-
-  gpg --import docprims-release-signing-key.asc 2>/dev/null
+  temporary_gpg="$(mktemp -d "${TMPDIR:-/tmp}/docprims-gpg.XXXXXX")"
+  trap 'rm -rf "$temporary_gpg"' EXIT
+  chmod 0700 "$temporary_gpg"
+  gpg --homedir "$temporary_gpg" --batch --import "$pgp_public" >/dev/null 2>&1
   for manifest in SHA256SUMS SHA512SUMS; do
-    if [ -f "$manifest" ] && [ -f "${manifest}.asc" ]; then
-      if gpg --verify "${manifest}.asc" "$manifest" 2>/dev/null; then
-        echo "[ok] $manifest PGP signature valid"
-      else
-        echo "[!!] $manifest PGP signature INVALID"
-        ERRORS=$((ERRORS + 1))
-      fi
-    fi
+    gpg --homedir "$temporary_gpg" --batch \
+      --verify "$directory/${manifest}.asc" "$directory/$manifest" \
+      >/dev/null 2>&1
   done
 fi
-
-if [ $ERRORS -eq 0 ]; then
-  echo "[ok] All signatures verified"
-  exit 0
-fi
-
-echo "[!!] $ERRORS signature verification errors"
-exit 1
+echo "[ok] all configured signatures verified"

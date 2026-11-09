@@ -20,6 +20,10 @@ import (
 	"unsafe"
 )
 
+// Limits bounds an extraction. A zero field means "use the default": the
+// fields are omitted from the request when zero, so Go callers cannot set a
+// limit to 0 (which in Rust and TypeScript means literally zero). No limit is
+// useful at 0, and a zero value can never disable a limit.
 type Limits struct {
 	MaxInputBytes  uint64 `json:"max_input_bytes,omitempty"`
 	MaxOutputBytes uint64 `json:"max_output_bytes,omitempty"`
