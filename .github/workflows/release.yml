@@ -218,7 +218,7 @@ jobs:
           retention-days: 7
   build-macos:
     name: CLI (${{ matrix.platform }})
-    runs-on: macos-14
+    runs-on: macos-15
     needs: validate
     strategy:
       matrix:
