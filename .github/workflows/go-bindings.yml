@@ -20,7 +20,7 @@ jobs:
           make go-test
           make go-test-shared
   go-test-darwin-arm64-vendored:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -31,7 +31,7 @@ jobs:
           cd bindings/go/docprims
           go test -v ./...
   go-test-darwin-arm64-shared:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable

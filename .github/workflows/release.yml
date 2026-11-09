@@ -154,7 +154,7 @@ jobs:
           path: docprims-${{ needs.validate-version.outputs.version }}-${{ matrix.artifact_suffix }}.tar.gz
   build-macos:
     name: Build macOS
-    runs-on: macos-14
+    runs-on: macos-15
     needs: validate-version
     env:
       MACOSX_DEPLOYMENT_TARGET: "11.0"
