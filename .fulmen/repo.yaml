@@ -1,0 +1,51 @@
+# .fulmen/repo.yaml: what this repo claims to be. Written against the
+# repository-classes standard; verified by manual convention review until the
+# planned contract:taxonomy/v0/repo-declaration.schema.json schema and checker land.
+# Describes the v0.2 relaunch (ADR-0007). v0.1.x artifacts are listed as legacy.
+schema: "contract:taxonomy/v0/repo-declaration.schema.json"
+class: prims
+profile: B  # locked parallel pure-Go and Rust implementations (ADR-0007)
+# Operating tree: go (named in README). The rust tree follows; then the repo flips to locked.
+profile_status: bootstrapping
+leaf: false  # depends on canonprims (ADR-0008)
+# Per-tree sibling allow-list (repository-classes §4.4); the dependency check fails on any other prim import.
+prim_dependencies:
+  rust: [canonprims]
+  go: [canonprims]  # pure-Go canonprims package; cgo-free
+category: library
+env_prefix: DOCPRIMS_
+umbrella_prefix: null
+surfaces: [library, cli]
+bindings:
+  rust: planned  # docprims + docprims-cli (crates.io) from v0.2.0; the v0.1 crates were never published
+  go: planned  # github.com/3leaps/docprims/extract (root go.mod, CGO_ENABLED=0); the operating tree
+  # npm 0.1.x (napi-rs addon) is deprecated by 0.2.0
+  typescript: planned  # @3leaps/docprims 0.2.x, bindings/typescript (wasm32, no imports)
+  python: planned  # docprims (PyPI), bindings/python (PyO3/maturin, abi3)
+target_registries: [crates_io, go_proxy, npm, pypi]
+formats:  # per tree, v0.2
+  rust: [pdf, docx, xlsx, pptx, xml, html, markdown]  # Cargo features: pdf, ooxml, text (all default)
+  go: [pdf, docx, xlsx, pptx, xml]  # subpackages extract/pdf, extract/ooxml; html and markdown planned for v0.3
+extensions:
+  - id: html-extract
+    scope: rust-only
+    reason: >-
+      Go has no stdlib HTML parser; Go tree returns an explicit Unsupported refusal, tested in the
+      shared vectors and scoped out of the cross-tree byte-identical check for this format only. Go
+      support planned for v0.3 with golang.org/x/net/html (ADR-0007)
+  - id: markdown-extract
+    scope: rust-only
+    reason: >-
+      Go has no stdlib Markdown parser; Go tree returns an explicit Unsupported refusal, tested in
+      the shared vectors and scoped out of the cross-tree byte-identical check for this format only.
+      Go support planned for v0.3 with goldmark (ADR-0007)
+  - id: typescript-wasm-binding
+    scope: typescript
+    reason: >-
+      zero-import wasm32-unknown-unknown module built from the Rust crate, as in yamlprims ADR-0004;
+      replaces the napi-rs addon (ADR-0007)
+  - id: bindings-go-docprims
+    scope: legacy-go-module
+    reason: >-
+      nested cgo module github.com/3leaps/docprims/bindings/go/docprims, already tagged
+      (bindings/go/docprims/v0.1.x); v0.1.5 is its final release and v0.2 removes it (ADR-0009)
