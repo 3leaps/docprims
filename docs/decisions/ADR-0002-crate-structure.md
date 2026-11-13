@@ -1,8 +1,9 @@
 # ADR-0002: Crate Structure
 
-> **Status**: Accepted
+> **Status**: Superseded
 > **Date**: 2025-01-25
 > **Authors**: 3leaps Architecture Council
+> **Superseded by**: [ADR-0007](ADR-0007-profile-b-go-twin-and-wasm-pyo3-bindings.md)
 
 ## Context
 

@@ -5,6 +5,11 @@ Content extraction from documents in a permissive licensing toolkit.
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](LICENSE-MIT)
 [![Rust](https://img.shields.io/badge/rust-1.88%2B-orange.svg)](https://www.rust-lang.org/)
 
+> **v0.2 relaunch in progress.** docprims is becoming a Profile B prim: one Rust crate plus a pure-Go twin
+> (no cgo), with PDF support and signed releases. The Go tree is the operating tree while the repo bootstraps;
+> the Rust tree follows. See [ADR-0007](docs/decisions/ADR-0007-profile-b-go-twin-and-wasm-pyo3-bindings.md)
+> and the [decision index](docs/decisions/README.md). The instructions below describe v0.1.x.
+
 ## Overview
 
 **docprims** extracts text from documents with permissive licensing throughout. Use it to build content analysis tools, search indexers, or document processors that can be statically linked and embedded in commercial software.
